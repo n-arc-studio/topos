@@ -6,11 +6,13 @@ import type {
   Thread,
   User,
 } from "@/lib/domain/types";
+import { loadDBSync, scheduleSave } from "./persistence";
 
 // MVP用の単純なメモリストア。
 // 永続化は次フェーズで PostgreSQL に差し替える前提で、関数インターフェイスのみ公開する。
 
 type DB = {
+  schemaVersion: number;
   users: Map<string, User>;
   spaces: Map<string, Space>;
   threads: Map<string, Thread>;
@@ -21,6 +23,9 @@ type DB = {
   // 同一ユーザーが同じ投稿を二重通報するのを防ぐ
   reportLog: Set<string>;
 };
+
+// スキーマ変更時はインクリメント。古い DB は破棄して再シードする。
+const SCHEMA_VERSION = 2;
 
 // Next.js dev のホットリロードでも一意に保つ
 const g = globalThis as unknown as { __toposDB?: DB };
@@ -172,6 +177,7 @@ function seed(): DB {
   for (const p of seedPosts) posts.set(p.id, p);
 
   return {
+    schemaVersion: SCHEMA_VERSION,
     users,
     spaces,
     threads,
@@ -183,8 +189,16 @@ function seed(): DB {
 }
 
 function getDB(): DB {
-  if (!g.__toposDB) g.__toposDB = seed();
+  if (!g.__toposDB || g.__toposDB.schemaVersion !== SCHEMA_VERSION) {
+    const loaded = loadDBSync(SCHEMA_VERSION);
+    g.__toposDB = loaded ?? seed();
+    if (!loaded) scheduleSave(g.__toposDB);
+  }
   return g.__toposDB;
+}
+
+function persist(): void {
+  if (g.__toposDB) scheduleSave(g.__toposDB);
 }
 
 // ---- 公開API ----
@@ -231,7 +245,23 @@ export function ensureUser(id: string, displayName: string): User {
       anonymousMass: 0,
     };
     db.users.set(id, u);
+    persist();
   }
+  return u;
+}
+
+export function updateUserDisplayName(
+  userId: string,
+  displayName: string
+): User | { error: string } {
+  const name = displayName.trim();
+  if (!name) return { error: "empty_name" };
+  if (name.length > 40) return { error: "too_long" };
+  const db = getDB();
+  const u = db.users.get(userId);
+  if (!u) return { error: "user_not_found" };
+  u.displayName = name;
+  persist();
   return u;
 }
 
@@ -251,6 +281,7 @@ export function createThread(input: {
     createdAt: Date.now(),
   };
   db.threads.set(t.id, t);
+  persist();
   return t;
 }
 
@@ -290,6 +321,7 @@ export function createPost(input: {
     ...newPostBase(),
   };
   db.posts.set(p.id, p);
+  persist();
   return p;
 }
 
@@ -316,6 +348,7 @@ export function react(input: {
     if (post.identityMode === "named") author.publicMass += w;
     else author.anonymousMass += w;
   }
+  persist();
   return post;
 }
 
@@ -349,6 +382,7 @@ export function reportPost(input: {
       note: `auto-sink: reports=${post.reportCount}`,
     });
   }
+  persist();
   return post;
 }
 
@@ -387,6 +421,7 @@ export function moderatePost(input: {
     kind: input.action,
     at: Date.now(),
   });
+  persist();
   return post;
 }
 

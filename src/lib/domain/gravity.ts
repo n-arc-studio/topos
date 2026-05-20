@@ -51,8 +51,12 @@ export interface ConversationStats {
 
 export function reactionScore(reactions: Post["reactions"]): number {
   let s = 0;
-  for (const k of Object.keys(reactions) as ReactionKind[]) {
-    s += (reactions[k] ?? 0) * REACTION_WEIGHT[k];
+  // 既知の重みキーのみで合計する (旧スキーマのキーが残っていても NaN にしない)
+  for (const k of Object.keys(REACTION_WEIGHT) as ReactionKind[]) {
+    const n = reactions?.[k];
+    if (typeof n === "number" && Number.isFinite(n)) {
+      s += n * REACTION_WEIGHT[k];
+    }
   }
   return s;
 }

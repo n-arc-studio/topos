@@ -29,7 +29,12 @@ export default async function RootLayout({
               <span className="text-[var(--accent)]">●</span> Topos
             </Link>
             <div className="text-xs text-[var(--muted)]">
-              {me.displayName}{" "}
+              <Link
+                href="/profile"
+                className="hover:text-[var(--accent)] transition"
+              >
+                {me.displayName}
+              </Link>{" "}
               <span className="opacity-60">
                 / 公=
                 <span className="text-[var(--foreground)]">{me.publicMass}</span>{" "}
