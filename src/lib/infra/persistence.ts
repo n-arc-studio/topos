@@ -7,6 +7,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import type {
+  GravityEvent,
   ModerationAction,
   Post,
   Space,
@@ -27,6 +28,7 @@ export type PersistDB = {
   moderation: ModerationAction[];
   reactionLog: Set<string>;
   reportLog: Set<string>;
+  gravityEvents: GravityEvent[];
 };
 
 interface SerializedDB {
@@ -38,6 +40,7 @@ interface SerializedDB {
   moderation: ModerationAction[];
   reactionLog: string[];
   reportLog: string[];
+  gravityEvents?: GravityEvent[];
 }
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -86,6 +89,7 @@ export function loadDBSync(expectedVersion: number): PersistDB | null {
       moderation: parsed.moderation,
       reactionLog: new Set(parsed.reactionLog),
       reportLog: new Set(parsed.reportLog),
+      gravityEvents: parsed.gravityEvents ?? [],
     };
   } catch (err) {
     console.error("[topos] persistence shape invalid", err);
@@ -106,6 +110,7 @@ function serialize(db: PersistDB): SerializedDB {
     moderation: db.moderation,
     reactionLog: [...db.reactionLog],
     reportLog: [...db.reportLog],
+    gravityEvents: db.gravityEvents,
   };
 }
 

@@ -84,6 +84,23 @@ export interface ReactionEvent {
   at: number;
 }
 
+// 重力スコアに影響を与える時点付きイベント。GravityChart の時系列再生に用いる。
+export type GravityEventType =
+  | "reaction"
+  | "report"
+  | "sink"
+  | "unsink"
+  | "pin"
+  | "unpin";
+
+export interface GravityEvent {
+  postId: PostId;
+  type: GravityEventType;
+  at: number;
+  reactionKind?: ReactionKind; // type=="reaction" のとき
+  byUserId?: UserId; // 参考: 誰が起こしたか
+}
+
 export interface ModerationAction {
   id: string;
   spaceId: SpaceId;

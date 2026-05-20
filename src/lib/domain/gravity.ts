@@ -1,4 +1,4 @@
-import type { Post, ReactionKind, User } from "./types";
+import type { Post, ReactionKind, User, GravityEvent } from "./types";
 import type { SpaceGravityConfig } from "./gravity-config";
 
 export type { SpaceGravityConfig } from "./gravity-config";
@@ -201,3 +201,65 @@ export const LAYER_ORDER: SedimentLayer[] = [
   "deep",
   "abyss",
 ];
+
+// ---- イベント駆動の重力履歴 ----
+//
+// 設計:
+//  - 現在の post.reactions / reportCount / isSunk / isPinned は「ストア上の最新状態」
+//  - events は重力を変化させた瞬間の時系列ログ (reaction / report / sink / unsink / pin / unpin)
+//  - 時刻 t におけるスナップショットは「現在の状態から t より後のイベントを巻き戻す」ことで得る
+//  - イベントが空の seed 投稿は、状態が常に最新であったかのように扱う (純粋な指数減衰)
+//  - stats (返信数・参加者数) は厳密な時系列再生をしないため、現在値を使う
+function buildPostSnapshotAt(
+  post: Post,
+  events: GravityEvent[],
+  t: number
+): Post {
+  const reactions: Record<ReactionKind, number> = {
+    ...post.reactions,
+  } as Record<ReactionKind, number>;
+  let reportCount = post.reportCount;
+  let isSunk = post.isSunk;
+  let isPinned = post.isPinned;
+  // 新しいイベントから巻き戻す (t より後のものを取り消す)
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.at <= t) break; // 配列が時系列昇順である前提
+    switch (e.type) {
+      case "reaction":
+        if (e.reactionKind && reactions[e.reactionKind] > 0) {
+          reactions[e.reactionKind] -= 1;
+        }
+        break;
+      case "report":
+        reportCount = Math.max(0, reportCount - 1);
+        break;
+      case "sink":
+        isSunk = false;
+        break;
+      case "unsink":
+        isSunk = true;
+        break;
+      case "pin":
+        isPinned = false;
+        break;
+      case "unpin":
+        isPinned = true;
+        break;
+    }
+  }
+  return { ...post, reactions, reportCount, isSunk, isPinned };
+}
+
+// 任意時刻 t における重力スコア (イベント履歴を考慮)
+export function gravityAt(
+  post: Post,
+  events: GravityEvent[],
+  t: number,
+  ctx: Omit<GravityContext, "now"> = {}
+): number {
+  // イベント配列はストアで時系列昇順だが念のためソート
+  const sorted = [...events].sort((a, b) => a.at - b.at);
+  const snapshot = buildPostSnapshotAt(post, sorted, t);
+  return gravityScore(snapshot, { ...ctx, now: t });
+}

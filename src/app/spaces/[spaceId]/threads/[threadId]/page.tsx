@@ -5,6 +5,7 @@ import {
   getThread,
   getUser,
   isAdmin,
+  listPostEvents,
   listPosts,
 } from "@/lib/infra/store";
 import {
@@ -120,6 +121,7 @@ export default async function ThreadPage({
         threadId={currentThread.id}
         depth={layered ? 0 : f.depth}
         halfLifeHours={currentSpace.gravityConfig?.halfLifeHours}
+        events={listPostEvents(f.post.id)}
       />
     );
   }

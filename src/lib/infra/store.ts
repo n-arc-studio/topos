@@ -1,4 +1,5 @@
 import type {
+  GravityEvent,
   ModerationAction,
   Post,
   ReactionKind,
@@ -23,6 +24,8 @@ type DB = {
   reactionLog: Set<string>;
   // 同一ユーザーが同じ投稿を二重通報するのを防ぐ
   reportLog: Set<string>;
+  // 重力スコアに影響したイベントの時系列ログ (GravityChart 用)
+  gravityEvents: GravityEvent[];
 };
 
 // スキーマ変更時はインクリメント。古い DB は破棄して再シードする。
@@ -186,6 +189,7 @@ function seed(): DB {
     moderation: [],
     reactionLog: new Set(),
     reportLog: new Set(),
+    gravityEvents: [],
   };
 }
 
@@ -228,6 +232,10 @@ export function listPosts(threadId: string): Post[] {
 
 export function getPost(id: string): Post | undefined {
   return getDB().posts.get(id);
+}
+
+export function listPostEvents(postId: string): GravityEvent[] {
+  return getDB().gravityEvents.filter((e) => e.postId === postId);
 }
 
 export function getUser(id: string): User | undefined {
@@ -346,6 +354,13 @@ export function react(input: {
   db.reactionLog.add(key);
 
   post.reactions[input.kind] = (post.reactions[input.kind] ?? 0) + 1;
+  db.gravityEvents.push({
+    postId: post.id,
+    type: "reaction",
+    at: Date.now(),
+    reactionKind: input.kind,
+    byUserId: input.byUserId,
+  });
 
   // 質量を著者に加算 (匿名と記名で別管理)
   const author = db.users.get(post.authorId);
@@ -373,10 +388,22 @@ export function reportPost(input: {
   db.reportLog.add(key);
 
   post.reportCount += 1;
+  db.gravityEvents.push({
+    postId: post.id,
+    type: "report",
+    at: Date.now(),
+    byUserId: input.byUserId,
+  });
 
   // 一定数を超えたら自動沈降
   if (!post.isSunk && post.reportCount >= AUTO_SINK_REPORT_THRESHOLD) {
     post.isSunk = true;
+    db.gravityEvents.push({
+      postId: post.id,
+      type: "sink",
+      at: Date.now(),
+      byUserId: "system",
+    });
     db.moderation.push({
       id: `m_${Math.random().toString(36).slice(2, 10)}`,
       spaceId: post.spaceId,
@@ -418,6 +445,12 @@ export function moderatePost(input: {
       post.isPinned = false;
       break;
   }
+  db.gravityEvents.push({
+    postId: post.id,
+    type: input.action,
+    at: Date.now(),
+    byUserId: input.byUserId,
+  });
   db.moderation.push({
     id: `m_${Math.random().toString(36).slice(2, 10)}`,
     spaceId: post.spaceId,

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { Post, ReactionKind } from "@/lib/domain/types";
+import type { Post, ReactionKind, GravityEvent } from "@/lib/domain/types";
 import { REACTION_LABEL } from "@/lib/domain/types";
 import { ReplyComposer } from "./ReplyComposer";
 import { GravityChart } from "./GravityChart";
@@ -27,6 +27,7 @@ export function PostCard({
   threadId,
   depth = 0,
   halfLifeHours,
+  events,
 }: {
   post: Post;
   displayName: string;
@@ -39,6 +40,7 @@ export function PostCard({
   threadId: string;
   depth?: number;
   halfLifeHours?: number;
+  events?: GravityEvent[];
 }) {
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -171,6 +173,7 @@ export function PostCard({
           <GravityChart
             post={post}
             baseScore={gravity}
+            events={events}
             halfLifeHours={halfLifeHours}
           />
         </div>
