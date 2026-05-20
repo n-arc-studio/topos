@@ -298,8 +298,13 @@ export function createPost(input: {
   const body = input.body.trim();
   if (!body) return { error: "empty_body" };
   if (body.length > 2000) return { error: "too_long" };
-  if (input.replyTo && !db.posts.has(input.replyTo)) {
-    return { error: "reply_target_not_found" };
+  if (input.replyTo) {
+    const target = db.posts.get(input.replyTo);
+    if (!target) return { error: "reply_target_not_found" };
+    if (target.threadId !== thread.id) {
+      // 別スレッドの投稿を返信先にすることは禁止 (データ整合性ガード)
+      return { error: "reply_cross_thread" };
+    }
   }
 
   const author = db.users.get(input.authorId);
@@ -468,4 +473,35 @@ export function listHotThreads(limit = 5): Array<{
     return recencyB - recencyA;
   });
   return result.slice(0, limit);
+}
+
+// ---- 管理画面用の参照API ----
+
+export function isAnyAdmin(userId: string): boolean {
+  const u = getDB().users.get(userId);
+  return !!u && u.isAdminOf.length > 0;
+}
+
+export function listReportedPosts(spaceIds?: string[]): Post[] {
+  const db = getDB();
+  return [...db.posts.values()]
+    .filter((p) => p.reportCount > 0)
+    .filter((p) => !spaceIds || spaceIds.includes(p.spaceId))
+    .sort((a, b) => b.reportCount - a.reportCount);
+}
+
+export function listSunkPosts(spaceIds?: string[]): Post[] {
+  const db = getDB();
+  return [...db.posts.values()]
+    .filter((p) => p.isSunk)
+    .filter((p) => !spaceIds || spaceIds.includes(p.spaceId))
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function listModerationLog(spaceIds?: string[], limit = 100) {
+  const db = getDB();
+  return [...db.moderation]
+    .filter((m) => !spaceIds || spaceIds.includes(m.spaceId))
+    .sort((a, b) => b.at - a.at)
+    .slice(0, limit);
 }

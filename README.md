@@ -45,13 +45,16 @@ The app persists runtime data into `data/topos-db.json`.
 ### Backup
 
 ```bash
-copy data\topos-db.json data\topos-db.backup.json
+npm run backup
 ```
+
+Saves a snapshot to `data/backups/topos-db-<timestamp>.json` and keeps the most
+recent 20 generations (override with `TOPOS_BACKUP_KEEP`).
 
 ### Restore
 
 ```bash
-copy /Y data\topos-db.backup.json data\topos-db.json
+copy /Y data\backups\topos-db-<timestamp>.json data\topos-db.json
 ```
 
 After restore, restart the app.

@@ -28,7 +28,15 @@ export default async function RootLayout({
             <Link href="/" className="font-semibold tracking-wide">
               <span className="text-[var(--accent)]">●</span> Topos
             </Link>
-            <div className="text-xs text-[var(--muted)]">
+            <div className="text-xs text-[var(--muted)] flex items-center gap-3">
+              {me.isAdminOf.length > 0 && (
+                <Link
+                  href="/admin"
+                  className="text-[var(--accent)] hover:underline"
+                >
+                  管理
+                </Link>
+              )}
               <Link
                 href="/profile"
                 className="hover:text-[var(--accent)] transition"
