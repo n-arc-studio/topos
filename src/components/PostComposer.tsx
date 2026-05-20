@@ -43,7 +43,7 @@ export function PostComposer({
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="言葉のコードを書く。文脈にパッチを当てるか、空気をデバッグするか。"
+        placeholder="内容を投稿する。必要なら提案や修正依頼として書く。"
         rows={3}
         className="w-full bg-[var(--panel-2)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent)] resize-y"
       />

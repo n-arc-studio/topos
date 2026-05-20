@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import type { Post, ReactionKind } from "@/lib/domain/types";
 
 const LABELS: Record<ReactionKind, string> = {
-  kusa: "草",
-  useful: "良論",
-  patch: "文脈パッチ",
-  debug: "デバッグ完了",
+  kusa: "いいね",
+  useful: "参考になった",
+  patch: "修正提案",
+  debug: "不具合報告",
 };
 
 export function PostCard({
