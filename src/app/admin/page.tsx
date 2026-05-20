@@ -10,6 +10,7 @@ import {
   listSunkPosts,
 } from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
+import { ModerateButton } from "@/components/ModerateButton";
 
 function fmt(ts: number) {
   return new Date(ts).toLocaleString("ja-JP");
@@ -64,7 +65,7 @@ export default async function AdminPage() {
                     </span>
                   </div>
                   <p className="text-sm whitespace-pre-wrap">{p.body}</p>
-                  <div className="mt-2 text-xs text-[var(--muted)] flex gap-3">
+                  <div className="mt-2 text-xs text-[var(--muted)] flex flex-wrap items-center gap-3">
                     <span>
                       著者: {author?.displayName ?? p.authorId}{" "}
                       <span className="opacity-60">({p.identityMode})</span>
@@ -75,6 +76,20 @@ export default async function AdminPage() {
                     >
                       スレッドを開く →
                     </Link>
+                    {!p.isSunk ? (
+                      <ModerateButton
+                        postId={p.id}
+                        action="sink"
+                        label="沈降させる"
+                        variant="warn"
+                      />
+                    ) : (
+                      <ModerateButton
+                        postId={p.id}
+                        action="unsink"
+                        label="沈降解除"
+                      />
+                    )}
                   </div>
                 </li>
               );
@@ -104,13 +119,18 @@ export default async function AdminPage() {
                     <span>{fmt(p.createdAt)}</span>
                   </div>
                   <p className="text-sm whitespace-pre-wrap">{p.body}</p>
-                  <div className="mt-2 text-xs">
+                  <div className="mt-2 text-xs flex flex-wrap items-center gap-3">
                     <Link
                       href={`/spaces/${p.spaceId}/threads/${p.threadId}`}
                       className="text-[var(--muted)] hover:text-[var(--accent)] transition"
                     >
                       スレッドを開く →
                     </Link>
+                    <ModerateButton
+                      postId={p.id}
+                      action="unsink"
+                      label="沈降解除"
+                    />
                   </div>
                 </li>
               );

@@ -1,4 +1,10 @@
-import { promises as fs, existsSync, readFileSync, mkdirSync } from "node:fs";
+import {
+  promises as fs,
+  existsSync,
+  readFileSync,
+  mkdirSync,
+  renameSync,
+} from "node:fs";
 import path from "node:path";
 import type {
   ModerationAction,
@@ -42,10 +48,34 @@ function ensureDir() {
 }
 
 export function loadDBSync(expectedVersion: number): PersistDB | null {
+  if (!existsSync(DATA_FILE)) return null;
+  let raw: string;
   try {
-    if (!existsSync(DATA_FILE)) return null;
-    const raw = readFileSync(DATA_FILE, "utf-8");
-    const parsed = JSON.parse(raw) as SerializedDB;
+    raw = readFileSync(DATA_FILE, "utf-8");
+  } catch (err) {
+    console.error("[topos] persistence read failed", err);
+    return null;
+  }
+  let parsed: SerializedDB;
+  try {
+    parsed = JSON.parse(raw) as SerializedDB;
+  } catch (err) {
+    // 壊れた JSON は隔離して空 DB で起動する。
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const quarantine = path.join(DATA_DIR, `topos-db.corrupt-${ts}.json`);
+    try {
+      ensureDir();
+      renameSync(DATA_FILE, quarantine);
+      console.error(
+        `[topos] persistence file was corrupt, quarantined to ${quarantine}`,
+        err
+      );
+    } catch (renameErr) {
+      console.error("[topos] persistence quarantine failed", renameErr);
+    }
+    return null;
+  }
+  try {
     if (parsed.schemaVersion !== expectedVersion) return null;
     return {
       schemaVersion: parsed.schemaVersion,
@@ -57,7 +87,8 @@ export function loadDBSync(expectedVersion: number): PersistDB | null {
       reactionLog: new Set(parsed.reactionLog),
       reportLog: new Set(parsed.reportLog),
     };
-  } catch {
+  } catch (err) {
+    console.error("[topos] persistence shape invalid", err);
     return null;
   }
 }
