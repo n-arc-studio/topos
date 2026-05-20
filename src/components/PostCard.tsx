@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Post, ReactionKind } from "@/lib/domain/types";
 import { REACTION_LABEL } from "@/lib/domain/types";
 import { ReplyComposer } from "./ReplyComposer";
+import { GravityChart } from "./GravityChart";
 
 const REACTION_ORDER: ReactionKind[] = [
   "like",
@@ -25,6 +26,7 @@ export function PostCard({
   meIsAnonymous,
   threadId,
   depth = 0,
+  halfLifeHours,
 }: {
   post: Post;
   displayName: string;
@@ -36,6 +38,7 @@ export function PostCard({
   meIsAnonymous: boolean;
   threadId: string;
   depth?: number;
+  halfLifeHours?: number;
 }) {
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -45,6 +48,7 @@ export function PostCard({
   const [isSunk, setIsSunk] = useState(post.isSunk);
   const [err, setErr] = useState<string | null>(null);
   const [replyOpen, setReplyOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
 
   function react(kind: ReactionKind) {
     setErr(null);
@@ -146,7 +150,14 @@ export function PostCard({
           </span>
         </span>
         <span title={`gravity=${gravity.toFixed(2)} replies=${replyCount} 参加=${participants}`}>
-          重力 {gravity.toFixed(1)} · 返信 {replyCount}
+          <button
+            type="button"
+            onClick={() => setChartOpen((v) => !v)}
+            className="hover:text-[var(--accent)] transition"
+            aria-expanded={chartOpen}
+          >
+            重力 {gravity.toFixed(1)}
+          </button>{" "}· 返信 {replyCount}
         </span>
       </header>
       <p
@@ -155,6 +166,15 @@ export function PostCard({
       >
         {post.body}
       </p>
+      {chartOpen && (
+        <div className="mt-2 rounded border border-[var(--border)] bg-[var(--panel)] p-2 inline-block">
+          <GravityChart
+            post={post}
+            baseScore={gravity}
+            halfLifeHours={halfLifeHours}
+          />
+        </div>
+      )}
       <footer className="mt-3 flex flex-wrap items-center gap-1.5">
         {REACTION_ORDER.map((k) => (
           <button

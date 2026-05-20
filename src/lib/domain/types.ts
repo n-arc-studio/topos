@@ -4,6 +4,8 @@
 //  - 匿名(anonymous) / 記名(named) は投稿ごとに切替可能
 //  - 管理者(admin)は記名強制で責任を可視化する
 
+import type { SpaceGravityConfig } from "./gravity-config";
+
 export type UserId = string;
 export type SpaceId = string;
 export type ThreadId = string;
@@ -41,6 +43,8 @@ export interface Space {
   charter: string; // 場の憲章 (どんな文脈を守るか)
   adminIds: UserId[];
   createdAt: number;
+  // 場ごとの物理係数 (未指定は既定値)
+  gravityConfig?: SpaceGravityConfig;
 }
 
 export interface Thread {

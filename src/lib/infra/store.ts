@@ -6,6 +6,7 @@ import type {
   Thread,
   User,
 } from "@/lib/domain/types";
+import type { SpaceGravityConfig } from "@/lib/domain/gravity-config";
 import { loadDBSync, scheduleSave } from "./persistence";
 
 // MVP用の単純なメモリストア。
@@ -504,4 +505,67 @@ export function listModerationLog(spaceIds?: string[], limit = 100) {
     .filter((m) => !spaceIds || spaceIds.includes(m.spaceId))
     .sort((a, b) => b.at - a.at)
     .slice(0, limit);
+}
+
+// ---- 場の物理係数を編集 (管理者専用) ----
+
+export function updateSpaceGravityConfig(
+  spaceId: string,
+  byUserId: string,
+  config: SpaceGravityConfig | null
+): Space | { error: string } {
+  const db = getDB();
+  const space = db.spaces.get(spaceId);
+  if (!space) return { error: "space_not_found" };
+  const u = db.users.get(byUserId);
+  if (!u || !u.isAdminOf.includes(spaceId)) return { error: "forbidden" };
+  if (config === null) {
+    delete space.gravityConfig;
+  } else {
+    space.gravityConfig = sanitizeGravityConfig(config);
+  }
+  db.moderation.push({
+    id: `m_${Math.random().toString(36).slice(2, 10)}`,
+    spaceId,
+    byUserId,
+    kind: "define",
+    payload: { gravityConfig: space.gravityConfig ?? null },
+    at: Date.now(),
+  });
+  persist();
+  return space;
+}
+
+function clampPositive(n: unknown, min = 0, max = 1e6): number | undefined {
+  if (typeof n !== "number" || !Number.isFinite(n)) return undefined;
+  return Math.min(max, Math.max(min, n));
+}
+
+function sanitizeGravityConfig(cfg: SpaceGravityConfig): SpaceGravityConfig {
+  const out: SpaceGravityConfig = {};
+  const h = clampPositive(cfg.halfLifeHours, 0.5, 24 * 365);
+  if (h !== undefined) out.halfLifeHours = h;
+  const rw = clampPositive(cfg.replyWeight);
+  if (rw !== undefined) out.replyWeight = rw;
+  const pw = clampPositive(cfg.participantWeight);
+  if (pw !== undefined) out.participantWeight = pw;
+  const rp = clampPositive(cfg.reportPenalty, 0, 1);
+  if (rp !== undefined) out.reportPenalty = rp;
+  const sd = clampPositive(cfg.sunkDamp, 0, 1);
+  if (sd !== undefined) out.sunkDamp = sd;
+  const seed = clampPositive(cfg.seed);
+  if (seed !== undefined) out.seed = seed;
+  const pb = clampPositive(cfg.pinBonus);
+  if (pb !== undefined) out.pinBonus = pb;
+  const ub = clampPositive(cfg.userMassBonus, 0, 10);
+  if (ub !== undefined) out.userMassBonus = ub;
+  if (cfg.reactionWeight) {
+    const rw2: Partial<Record<ReactionKind, number>> = {};
+    for (const k of Object.keys(cfg.reactionWeight) as ReactionKind[]) {
+      const v = clampPositive(cfg.reactionWeight[k]);
+      if (v !== undefined) rw2[k] = v;
+    }
+    if (Object.keys(rw2).length > 0) out.reactionWeight = rw2;
+  }
+  return out;
 }

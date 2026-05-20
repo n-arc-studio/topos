@@ -11,6 +11,7 @@ import {
 } from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 import { ModerateButton } from "@/components/ModerateButton";
+import { SpaceConfigForm } from "@/components/SpaceConfigForm";
 
 function fmt(ts: number) {
   return new Date(ts).toLocaleString("ja-JP");
@@ -38,6 +39,27 @@ export default async function AdminPage() {
         <p className="text-xs text-[var(--muted)] mt-2">
           対象の場: {spaceIds.join(", ") || "(なし)"}
         </p>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">場の物理係数</h2>
+        <p className="text-xs text-[var(--muted)]">
+          各場の重力パラメータを上書きできます。空欄は既定値が使われます。
+        </p>
+        <div className="space-y-3">
+          {spaceIds.map((sid) => {
+            const sp = getSpace(sid);
+            if (!sp) return null;
+            return (
+              <SpaceConfigForm
+                key={sid}
+                spaceId={sid}
+                spaceName={sp.name}
+                initial={sp.gravityConfig ?? null}
+              />
+            );
+          })}
+        </div>
       </section>
 
       <section className="space-y-3">
