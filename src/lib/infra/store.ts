@@ -199,6 +199,8 @@ function getDB(): DB {
     g.__toposDB = loaded ?? seed();
     if (!loaded) scheduleSave(g.__toposDB);
   }
+  // 後方互換: 既存 DB に gravityEvents が無い場合 (古いプロセスの globalThis キャッシュ等)
+  if (!g.__toposDB.gravityEvents) g.__toposDB.gravityEvents = [];
   return g.__toposDB;
 }
 
@@ -235,7 +237,8 @@ export function getPost(id: string): Post | undefined {
 }
 
 export function listPostEvents(postId: string): GravityEvent[] {
-  return getDB().gravityEvents.filter((e) => e.postId === postId);
+  const events = getDB().gravityEvents ?? [];
+  return events.filter((e) => e.postId === postId);
 }
 
 export function getUser(id: string): User | undefined {
