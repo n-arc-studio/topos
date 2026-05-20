@@ -48,26 +48,34 @@ export default async function SpacePage({
 
       <section>
         <h2 className="text-sm font-medium mb-3">スレッド</h2>
-        <ul className="space-y-2">
-          {threads.map((t) => (
-            <li
-              key={t.id}
-              className="rounded-md border border-[var(--border)] bg-[var(--panel)] hover:bg-[var(--panel-2)] transition"
-            >
-              <Link
-                href={`/spaces/${space.id}/threads/${t.id}`}
-                className="block p-3"
+        {threads.length === 0 ? (
+          <div className="rounded-md border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
+            まだスレッドはありません。
+            <br />
+            最初の問いを置いてみませんか?
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {threads.map((t) => (
+              <li
+                key={t.id}
+                className="rounded-md border border-[var(--border)] bg-[var(--panel)] hover:bg-[var(--panel-2)] transition"
               >
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-medium">{t.title}</span>
-                  <span className="text-xs text-[var(--muted)]">
-                    {new Date(t.createdAt).toLocaleString("ja-JP")}
-                  </span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                <Link
+                  href={`/spaces/${space.id}/threads/${t.id}`}
+                  className="block p-3"
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-medium">{t.title}</span>
+                    <span className="text-xs text-[var(--muted)]">
+                      {new Date(t.createdAt).toLocaleString("ja-JP")}
+                    </span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <p className="text-xs text-[var(--muted)]">

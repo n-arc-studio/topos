@@ -1,15 +1,6 @@
 import { NextResponse } from "next/server";
-import { react } from "@/lib/infra/store";
+import { reportPost } from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
-import type { ReactionKind } from "@/lib/domain/types";
-
-const ALLOWED: ReactionKind[] = [
-  "like",
-  "useful",
-  "laugh",
-  "tsukkomi",
-  "agree",
-];
 
 export async function POST(
   req: Request,
@@ -18,12 +9,13 @@ export async function POST(
   const { postId } = await params;
   const me = await currentUser();
   const body = (await req.json().catch(() => null)) as {
-    kind?: ReactionKind;
+    reason?: string;
   } | null;
-  if (!body?.kind || !ALLOWED.includes(body.kind)) {
-    return NextResponse.json({ error: "invalid_kind" }, { status: 400 });
-  }
-  const result = react({ postId, byUserId: me.id, kind: body.kind });
+  const result = reportPost({
+    postId,
+    byUserId: me.id,
+    reason: body?.reason,
+  });
   if ("error" in result) {
     return NextResponse.json(result, { status: 400 });
   }

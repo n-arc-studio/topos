@@ -16,13 +16,37 @@ type DB = {
   threads: Map<string, Thread>;
   posts: Map<string, Post>;
   moderation: ModerationAction[];
+  // 同一ユーザー × 同一投稿 × 同一種別の反応の重複防止
+  reactionLog: Set<string>;
+  // 同一ユーザーが同じ投稿を二重通報するのを防ぐ
+  reportLog: Set<string>;
 };
 
 // Next.js dev のホットリロードでも一意に保つ
 const g = globalThis as unknown as { __toposDB?: DB };
 
+const AUTO_SINK_REPORT_THRESHOLD = 3;
+
+// 質量(マス)に加算するときの反応別重み。重力スコアと近いが、長期的な評価のため少し控えめ。
+const MASS_WEIGHT: Record<ReactionKind, number> = {
+  like: 1,
+  useful: 3,
+  laugh: 2,
+  tsukkomi: 2,
+  agree: 2,
+};
+
 function emptyReactions(): Post["reactions"] {
-  return { kusa: 0, useful: 0, patch: 0, debug: 0 };
+  return { like: 0, useful: 0, laugh: 0, tsukkomi: 0, agree: 0 };
+}
+
+function newPostBase(): Pick<Post, "reactions" | "reportCount" | "isPinned" | "isSunk"> {
+  return {
+    reactions: emptyReactions(),
+    reportCount: 0,
+    isPinned: false,
+    isSunk: false,
+  };
 }
 
 function seed(): DB {
@@ -94,8 +118,11 @@ function seed(): DB {
       identityMode: "named",
       body: "場の重力とは、人や熱量が自然と引き寄せられる引力のこと。フォロワー数ではなく、場への寄与で評価される世界をつくる。",
       createdAt: now - 1000 * 60 * 60 * 24 * 3,
-      reactions: { kusa: 3, useful: 7, patch: 2, debug: 0 },
+      reactions: { like: 3, useful: 7, laugh: 0, tsukkomi: 0, agree: 4 },
       isAdminPost: true,
+      reportCount: 0,
+      isPinned: true,
+      isSunk: false,
     },
     {
       id: "p2",
@@ -105,8 +132,12 @@ function seed(): DB {
       identityMode: "anonymous",
       body: "結局フォロワー数ゲームじゃないSNSってどう成り立つの",
       createdAt: now - 1000 * 60 * 60 * 24 * 2,
-      reactions: { kusa: 1, useful: 2, patch: 0, debug: 0 },
+      reactions: { like: 1, useful: 2, laugh: 0, tsukkomi: 1, agree: 1 },
       isAdminPost: false,
+      replyTo: "p1",
+      reportCount: 0,
+      isPinned: false,
+      isSunk: false,
     },
     {
       id: "p3",
@@ -116,8 +147,12 @@ function seed(): DB {
       identityMode: "named",
       body: "「場の維持に貢献したか」をスコア化する。澱む発言は重力で下に沈み、流れを作る発言が上に浮く。",
       createdAt: now - 1000 * 60 * 60 * 12,
-      reactions: { kusa: 4, useful: 10, patch: 3, debug: 1 },
+      reactions: { like: 4, useful: 10, laugh: 0, tsukkomi: 0, agree: 6 },
       isAdminPost: true,
+      replyTo: "p2",
+      reportCount: 0,
+      isPinned: false,
+      isSunk: false,
     },
     {
       id: "p4",
@@ -127,13 +162,24 @@ function seed(): DB {
       identityMode: "anonymous",
       body: "敬語=マナーって認識自体が日本語OSのバグだと思う",
       createdAt: now - 1000 * 60 * 60 * 6,
-      reactions: { kusa: 5, useful: 4, patch: 1, debug: 0 },
+      reactions: { like: 5, useful: 4, laugh: 2, tsukkomi: 1, agree: 3 },
       isAdminPost: false,
+      reportCount: 0,
+      isPinned: false,
+      isSunk: false,
     },
   ];
   for (const p of seedPosts) posts.set(p.id, p);
 
-  return { users, spaces, threads, posts, moderation: [] };
+  return {
+    users,
+    spaces,
+    threads,
+    posts,
+    moderation: [],
+    reactionLog: new Set(),
+    reportLog: new Set(),
+  };
 }
 
 function getDB(): DB {
@@ -163,6 +209,10 @@ export function getThread(id: string): Thread | undefined {
 
 export function listPosts(threadId: string): Post[] {
   return [...getDB().posts.values()].filter((p) => p.threadId === threadId);
+}
+
+export function getPost(id: string): Post | undefined {
+  return getDB().posts.get(id);
 }
 
 export function getUser(id: string): User | undefined {
@@ -217,6 +267,9 @@ export function createPost(input: {
   const body = input.body.trim();
   if (!body) return { error: "empty_body" };
   if (body.length > 2000) return { error: "too_long" };
+  if (input.replyTo && !db.posts.has(input.replyTo)) {
+    return { error: "reply_target_not_found" };
+  }
 
   const author = db.users.get(input.authorId);
   const isAdmin = !!author?.isAdminOf.includes(thread.spaceId);
@@ -232,9 +285,9 @@ export function createPost(input: {
     identityMode: mode,
     body,
     createdAt: Date.now(),
-    reactions: emptyReactions(),
     isAdminPost: isAdmin,
     replyTo: input.replyTo,
+    ...newPostBase(),
   };
   db.posts.set(p.id, p);
   return p;
@@ -249,19 +302,135 @@ export function react(input: {
   const post = db.posts.get(input.postId);
   if (!post) return { error: "post_not_found" };
   if (post.authorId === input.byUserId) return { error: "self_reaction" };
+
+  const key = `${input.byUserId}:${input.postId}:${input.kind}`;
+  if (db.reactionLog.has(key)) return { error: "already_reacted" };
+  db.reactionLog.add(key);
+
   post.reactions[input.kind] = (post.reactions[input.kind] ?? 0) + 1;
 
   // 質量を著者に加算 (匿名と記名で別管理)
   const author = db.users.get(post.authorId);
   if (author) {
-    const w = { kusa: 1, useful: 2, patch: 4, debug: 5 }[input.kind];
+    const w = MASS_WEIGHT[input.kind];
     if (post.identityMode === "named") author.publicMass += w;
     else author.anonymousMass += w;
   }
   return post;
 }
 
+export function reportPost(input: {
+  postId: string;
+  byUserId: string;
+  reason?: string;
+}): Post | { error: string } {
+  const db = getDB();
+  const post = db.posts.get(input.postId);
+  if (!post) return { error: "post_not_found" };
+  if (post.authorId === input.byUserId) return { error: "self_report" };
+
+  const key = `${input.byUserId}:${input.postId}`;
+  if (db.reportLog.has(key)) return { error: "already_reported" };
+  db.reportLog.add(key);
+
+  post.reportCount += 1;
+
+  // 一定数を超えたら自動沈降
+  if (!post.isSunk && post.reportCount >= AUTO_SINK_REPORT_THRESHOLD) {
+    post.isSunk = true;
+    db.moderation.push({
+      id: `m_${Math.random().toString(36).slice(2, 10)}`,
+      spaceId: post.spaceId,
+      threadId: post.threadId,
+      postId: post.id,
+      byUserId: "system",
+      kind: "sink",
+      at: Date.now(),
+      note: `auto-sink: reports=${post.reportCount}`,
+    });
+  }
+  return post;
+}
+
+export function moderatePost(input: {
+  postId: string;
+  byUserId: string;
+  action: "sink" | "unsink" | "pin" | "unpin";
+}): Post | { error: string } {
+  const db = getDB();
+  const post = db.posts.get(input.postId);
+  if (!post) return { error: "post_not_found" };
+  const user = db.users.get(input.byUserId);
+  if (!user?.isAdminOf.includes(post.spaceId)) {
+    return { error: "not_authorized" };
+  }
+  switch (input.action) {
+    case "sink":
+      post.isSunk = true;
+      break;
+    case "unsink":
+      post.isSunk = false;
+      break;
+    case "pin":
+      post.isPinned = true;
+      break;
+    case "unpin":
+      post.isPinned = false;
+      break;
+  }
+  db.moderation.push({
+    id: `m_${Math.random().toString(36).slice(2, 10)}`,
+    spaceId: post.spaceId,
+    threadId: post.threadId,
+    postId: post.id,
+    byUserId: input.byUserId,
+    kind: input.action,
+    at: Date.now(),
+  });
+  return post;
+}
+
 export function isAdmin(userId: string, spaceId: string): boolean {
   const u = getDB().users.get(userId);
   return !!u?.isAdminOf.includes(spaceId);
+}
+
+// ホーム用: 全スレッドを「最新投稿の活発さ」で並べ替える
+export function listHotThreads(limit = 5): Array<{
+  thread: Thread;
+  space: Space;
+  postCount: number;
+  lastPostAt: number;
+}> {
+  const db = getDB();
+  const allPosts = [...db.posts.values()];
+  const result: Array<{
+    thread: Thread;
+    space: Space;
+    postCount: number;
+    lastPostAt: number;
+  }> = [];
+  for (const thread of db.threads.values()) {
+    const space = db.spaces.get(thread.spaceId);
+    if (!space) continue;
+    const posts = allPosts.filter((p) => p.threadId === thread.id);
+    const lastPostAt = posts.reduce(
+      (acc, p) => Math.max(acc, p.createdAt),
+      thread.createdAt
+    );
+    result.push({ thread, space, postCount: posts.length, lastPostAt });
+  }
+  // ざっくり: 最新投稿の新しさ + 投稿数 を組合せ
+  result.sort((a, b) => {
+    const recencyA =
+      Math.pow(0.5, (Date.now() - a.lastPostAt) / (1000 * 60 * 60 * 24)) *
+        10 +
+      a.postCount;
+    const recencyB =
+      Math.pow(0.5, (Date.now() - b.lastPostAt) / (1000 * 60 * 60 * 24)) *
+        10 +
+      b.postCount;
+    return recencyB - recencyA;
+  });
+  return result.slice(0, limit);
 }

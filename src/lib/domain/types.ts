@@ -11,11 +11,21 @@ export type PostId = string;
 
 export type IdentityMode = "anonymous" | "named";
 
-export type ReactionKind =
-  | "kusa" // 草: 場の電流を流した
-  | "useful" // 良論: 場の文脈に寄与
-  | "patch" // 文脈パッチ: 概念を定義し直した
-  | "debug"; // デバッグ完了: 澱みを解消した
+// 反応の種類
+//  - like     : いいね (軽い同意 / 一票)
+//  - useful   : 参考になった (情報価値)
+//  - laugh    : 笑った (面白さ・場の温度)
+//  - tsukkomi : ツッコミ (会話を回す軽い返し / 突っ込み)
+//  - agree    : なるほど (理解が進んだ)
+export type ReactionKind = "like" | "useful" | "laugh" | "tsukkomi" | "agree";
+
+export const REACTION_LABEL: Record<ReactionKind, string> = {
+  like: "いいね",
+  useful: "参考になった",
+  laugh: "笑った",
+  tsukkomi: "ツッコミ",
+  agree: "なるほど",
+};
 
 export interface User {
   id: UserId;
@@ -52,6 +62,15 @@ export interface Post {
   reactions: Record<ReactionKind, number>;
   isAdminPost: boolean; // 投稿時点で管理者だったか (履歴のため)
   replyTo?: PostId;
+  reportCount: number; // 通報数 (一定数で自動沈降)
+  isPinned: boolean; // 管理者がピン留めしたか
+  isSunk: boolean; // 管理者または自動沈降で沈められたか
+}
+
+// スレッド内で計算する会話統計 (重力スコアの会話活性成分に使う)
+export interface ThreadStats {
+  replyCountByPost: Record<PostId, number>;
+  participantsByPost: Record<PostId, number>; // 子孫を含む一意参加者数
 }
 
 export interface ReactionEvent {
@@ -67,7 +86,7 @@ export interface ModerationAction {
   threadId?: ThreadId;
   postId?: PostId;
   byUserId: UserId;
-  kind: "lift" | "sink" | "slow" | "pin" | "define";
+  kind: "lift" | "sink" | "slow" | "pin" | "define" | "unsink" | "unpin";
   payload?: Record<string, unknown>;
   at: number;
   note?: string;
