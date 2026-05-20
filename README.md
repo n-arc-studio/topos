@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Topos
 
-## Getting Started
+Topos is an experimental SNS where posts are ranked by contribution to the field,
+not follower counts.
 
-First, run the development server:
+## Requirements
+
+- Node.js 20+
+- npm 10+
+
+## Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production Run
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run build
+npm run start
+```
 
-## Learn More
+## Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+This MVP currently does not require mandatory environment variables.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Optional:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `PORT`: server port for `npm run start`
 
-## Deploy on Vercel
+## Data Persistence (MVP)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The app persists runtime data into `data/topos-db.json`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Auto-save happens on mutations (create post/thread, reactions, moderation, profile updates).
+- This file is intentionally excluded from git.
+
+## Backup / Restore
+
+### Backup
+
+```bash
+copy data\topos-db.json data\topos-db.backup.json
+```
+
+### Restore
+
+```bash
+copy /Y data\topos-db.backup.json data\topos-db.json
+```
+
+After restore, restart the app.
+
+## Notes
+
+- Authentication is cookie-based pseudo auth in this MVP.
+- Full PostgreSQL/Auth.js migration remains a separate roadmap item.
