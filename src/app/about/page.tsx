@@ -180,6 +180,39 @@ export default function AboutPage() {
         </p>
       </section>
 
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">実験段階について</h2>
+        <p className="text-sm text-[var(--muted)] leading-relaxed">
+          Topos は実験段階のサービスです。スレッドに書き込まれた情報の永続保証はしません。
+          仕様や使い方は、ユーザーの意見をもとにこれからも変えていきます。
+          気づいたことや改善案があれば、どんどん意見をください。
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">MVP の注意事項</h2>
+        <ul className="text-sm text-[var(--muted)] space-y-2 list-disc list-inside leading-relaxed">
+          <li>
+            投稿・スレッド・設定は、実験運用の都合で今後消える、移行される、または仕様変更されることがあります。
+          </li>
+          <li>
+            「場」「重力」「沈殿層」のふるまいは調整対象です。使い方や見え方が予告なく変わることがあります。
+          </li>
+          <li>
+            現在のユーザー識別は Cookie ベースの仮実装です。管理者権限も本格認証ではなく、運用上の設定で付与しています。
+          </li>
+          <li>
+            通報・沈降・管理者操作は試験運用です。最終仕様ではないため、挙動や条件が変わる可能性があります。
+          </li>
+          <li>
+            使いにくい点や違和感は、ぜひ意見としてください。ユーザーの声をもとに、機能や文言を更新していきます。
+          </li>
+          <li>
+            商用利用や業務組み込みは現時点では想定していません。利用条件が変わる場合は、別途案内します。
+          </li>
+        </ul>
+      </section>
+
       <footer className="pt-6 border-t border-[var(--border)] text-xs text-[var(--muted)]">
         <Link href="/" className="hover:text-[var(--accent)]">
           ← トップに戻る
