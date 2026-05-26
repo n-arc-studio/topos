@@ -1,56 +1,120 @@
 # Topos
 
-Topos は、フォロワー数や声の大きさではなく、
-「場への寄与」で投稿の可視性が決まる実験的 SNS です。
+![Commercial Use Prohibited](https://img.shields.io/badge/Commercial%20Use-Prohibited-red)
 
-## 思想
+Topos は、フォロワー数ではなく「場への寄与」で投稿の見え方が変わる、実験的なコミュニティプラットフォームです。
 
-Topos の中心にある思想は、次の 3 点です。
+## コンセプト
 
-1. 人の評価ではなく、場の健全性を最適化する
-2. 目立つことより、流れを良くする貢献を評価する
-3. 放置された場は自然に凍結し、必要なら引き継ぐ
+- 個人の拡散力より、場の対話品質を優先する
+- 投稿を「バズ」ではなく「文脈への貢献」で扱う
+- 放置された場を段階的に可視化し、最終的に凍結できるようにする
 
-一般的な SNS は、個人アカウントの影響力を拡大する設計になりがちです。
-その結果、短期的な刺激や対立が増幅され、コミュニティ全体の質が不安定になります。
+## 現在の主な機能
 
-Topos は逆に、場を主体として扱います。投稿は「誰が言ったか」よりも、
-「その発言が場の探索・理解・対話にどれだけ寄与したか」を重視して扱われます。
+- 場 / スレッド / 投稿の作成
+- 投稿の記名・匿名切り替え
+- 投稿へのリアクション (`like`, `agree`, `useful`, `laugh`, `tsukkomi`)
+- 投稿の通報、管理者による `pin` / `unpin` / `sink` / `unsink`
+- 重力スコアによる並び替え
+- スレッド表示モード切り替え
+	- 時系列ツリー表示
+	- 沈殿層表示 (`surface`, `shallow`, `deep`, `abyss`)
+- 管理コンソール
+	- 通報投稿の確認
+	- 沈降投稿の確認
+	- モデレーション履歴の確認
+	- 場ごとの重力係数の上書き設定
+- プロフィール編集
 
-この方針を実装するために、次のような設計を採用しています。
+## アーキテクチャ概要
 
-- 重力スコア: 反応・通報・管理操作をイベントとして蓄積し、表示順位に反映する
-- 管理ライフサイクル: `active -> dormant -> succession -> archived` の段階遷移で放置を可視化する
-- 立候補継承: 継承期間に候補者を募り、無人化した場を自然に引き継げるようにする
-- アーカイブ凍結: 継承不成立の場は書き込み停止し、履歴を安全に保存する
-- バケーション宣言: 管理者の一時不在を明示し、不必要な継承発火を抑える
+- フレームワーク: Next.js 16 (App Router)
+- 言語: TypeScript
+- UI: React 19
+- テスト: Vitest
+- 永続化:
+	- `DATABASE_URL` 設定時: PostgreSQL (Neon ドライバ)
+	- 未設定時: JSON ファイル (`data/topos-db.json`)
 
-このプロジェクトは、アルゴリズムの勝ち負けではなく、
-コミュニティ運営の哲学をコードで検証することを目的にしています。
+## セットアップ
 
-## 動作要件
+要件:
 
-- Node.js 20 以上
-- npm 10 以上
+- Node.js 20+
+- npm 10+
 
-## 開発起動
+インストール:
 
 ```bash
 npm install
+```
+
+開発サーバ起動:
+
+```bash
 npm run dev
 ```
 
 起動後に `http://localhost:3000` を開いてください。
 
-## 本番起動
+本番ビルドと起動:
 
 ```bash
-npm install
 npm run build
 npm run start
 ```
 
+## 環境変数
+
+必須ではありません。未設定でもローカル JSON 永続化で動作します。
+
+- `DATABASE_URL`
+	- 外部 PostgreSQL 接続文字列
+	- 設定時は DB 永続化を使用
+- `PORT`
+	- `npm run start` の待受ポート
+- `NEXT_PUBLIC_APP_VERSION`
+	- フッター表示用バージョン文字列
+- `TOPOS_BACKUP_KEEP`
+	- バックアップ保持世代数 (既定: `20`)
+
+## 永続化と運用上の注意
+
+- ローカル開発で `DATABASE_URL` 未設定の場合、データは `data/topos-db.json` に保存されます。
+- `data/` は Git 管理対象外です。
+- Vercel 本番環境ではサーバレスファイルシステムに対する書き込み永続化は保証されません。
+	- 本番運用では `DATABASE_URL` を設定し、外部 DB を使用してください。
+
+### Neon を使う最小手順
+
+1. Neon でプロジェクトと DB を作成し、接続文字列を取得する
+2. `.env.local` に `DATABASE_URL=...` を設定する
+3. Vercel の Environment Variables に同じ `DATABASE_URL` を設定する
+4. 投稿作成後に再デプロイし、データが保持されることを確認する
+
+## バックアップ / 復元
+
+バックアップ:
+
+```bash
+npm run backup
+```
+
+- `data/backups/topos-db-<timestamp>.json` に保存されます
+- 古い世代は `TOPOS_BACKUP_KEEP` に従って自動削除されます
+
+復元 (Windows):
+
+```bash
+copy /Y data\backups/topos-db-<timestamp>.json data\topos-db.json
+```
+
+復元後はアプリを再起動してください。
+
 ## テスト
+
+通常実行:
 
 ```bash
 npm run test:run
@@ -62,71 +126,41 @@ npm run test:run
 npm run test:coverage
 ```
 
-GitHub Actions では [`.github/workflows/qa.yml`](.github/workflows/qa.yml) で
-`npm run test:run` を push / pull_request 時に実行します。
+## CI/CD
 
-本番デプロイは [`.github/workflows/deploy-vercel.yml`](.github/workflows/deploy-vercel.yml) で実行します。
-`main` への push で QA Tests が成功した後に起動し、次の順で処理します。
+- テスト: `.github/workflows/qa.yml`
+	- `push` / `pull_request` で `npm run test:run` を実行
+- 本番デプロイ: `.github/workflows/deploy-vercel.yml`
+	- `main` への `push` 後、QA 成功時に Vercel へデプロイ
+	- `package.json` の `version` と run 番号 / commit SHA から版番号を生成し、`NEXT_PUBLIC_APP_VERSION` として注入
 
-1. `package.json` の `version` と Actions の run 番号 / commit SHA からアプリ版番号を生成
-2. 生成した値を `NEXT_PUBLIC_APP_VERSION` としてビルドに注入
-3. Vercel 本番環境へデプロイ
-
-GitHub Secrets に以下が必要です。
+必要な GitHub Secrets:
 
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
 
-## 環境変数
+## API エンドポイント (実装済み)
 
-Neon など外部 PostgreSQL を使う場合は、次を設定してください。
+- `GET /api/me`
+- `POST /api/profile`
+- `POST /api/threads`
+- `POST /api/posts`
+- `POST /api/posts/:postId/reactions`
+- `POST /api/posts/:postId/report`
+- `POST /api/posts/:postId/moderate`
+- `POST /api/spaces/:spaceId/config`
 
-- `DATABASE_URL`: PostgreSQL 接続文字列
+## 未実装 / 進行中
 
-`DATABASE_URL` が未設定の場合はローカル JSON 永続化を使用します。
+- `api/spaces/[spaceId]/candidates` と `api/spaces/[spaceId]/vacation` は現時点で API 実装ファイルが未配置です
+- チケット管理は `tickets/` 配下で継続しています
 
-任意:
+## 利用条件
 
-- `PORT`: `npm run start` 実行時のポート番号
-- `NEXT_PUBLIC_APP_VERSION`: フッターに表示する版番号（未設定時は `package.json` の `version` を表示）
+このリポジトリのコードおよび成果物は、現時点で商用利用不可です。
 
-## データ永続化 (MVP)
+- 許可される利用: 個人学習、検証、研究、非商用での試用
+- 禁止される利用: 販売、SaaS 提供、有償サポート付与、企業内業務への商用組み込み
 
-`DATABASE_URL` が設定されている場合、実行時データは PostgreSQL に保存されます。
-
-`DATABASE_URL` が未設定の場合、実行時データは `data/topos-db.json` に保存されます。
-
-- 投稿/スレッド作成、リアクション、通報、モデレーション、プロフィール更新時に自動保存されます
-- このファイルは運用データとして Git 管理対象外にしています
-
-### Neon 利用時の最小手順
-
-1. Neon でプロジェクトと DB を作成し、接続文字列を取得する
-2. ローカルの `.env.local` に `DATABASE_URL=...` を設定する
-3. Vercel の Environment Variables にも同じ `DATABASE_URL` を設定する
-4. デプロイ後に投稿を作成し、再デプロイ後も残ることを確認する
-
-## バックアップと復元
-
-### バックアップ
-
-```bash
-npm run backup
-```
-
-`data/backups/topos-db-<timestamp>.json` にスナップショットを作成します。
-既定では新しい世代を 20 件保持します (環境変数 `TOPOS_BACKUP_KEEP` で変更可能)。
-
-### 復元
-
-```bash
-copy /Y data\backups/topos-db-<timestamp>.json data\topos-db.json
-```
-
-復元後はアプリを再起動してください。
-
-## 補足
-
-- 認証は MVP のため Cookie ベースの簡易方式です
-- PostgreSQL/Auth.js への移行は今後のロードマップ項目です
+商用利用を希望する場合は、事前に権利者へ確認してください。
