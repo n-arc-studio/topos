@@ -152,10 +152,7 @@ export default function AboutPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">場の管理者へ</h2>
         <p className="text-sm text-[var(--muted)] leading-relaxed">
-          <Link href="/admin" className="text-[var(--accent)] hover:underline">
-            /admin
-          </Link>{" "}
-          から場ごとに重力係数を上書きできます。
+          管理者向けコンソールから、場ごとに重力係数を上書きできます。
           「どの曲線を歓迎するか」を設計するのは管理者の役目です。
         </p>
         <ul className="text-sm text-[var(--muted)] space-y-1 list-disc list-inside">
