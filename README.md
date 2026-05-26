@@ -50,6 +50,21 @@ npm run build
 npm run start
 ```
 
+## テスト
+
+```bash
+npm run test:run
+```
+
+カバレッジ付き:
+
+```bash
+npm run test:coverage
+```
+
+GitHub Actions では [`.github/workflows/qa.yml`](.github/workflows/qa.yml) で
+`npm run test:run` を push / pull_request 時に実行します。
+
 ## 環境変数
 
 Neon など外部 PostgreSQL を使う場合は、次を設定してください。
