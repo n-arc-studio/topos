@@ -8,7 +8,12 @@ import type {
   User,
 } from "@/lib/domain/types";
 import type { SpaceGravityConfig } from "@/lib/domain/gravity-config";
-import { loadDBSync, scheduleSave } from "./persistence";
+import {
+  evaluateLifecycle,
+  isWritable,
+  MAX_VACATION_MS,
+} from "@/lib/domain/lifecycle";
+import { loadDB, scheduleSave } from "./persistence";
 
 // MVP用の単純なメモリストア。
 // 永続化は次フェーズで PostgreSQL に差し替える前提で、関数インターフェイスのみ公開する。
@@ -29,7 +34,7 @@ type DB = {
 };
 
 // スキーマ変更時はインクリメント。古い DB は破棄して再シードする。
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 // Next.js dev のホットリロードでも一意に保つ
 const g = globalThis as unknown as { __toposDB?: DB };
@@ -89,6 +94,9 @@ function seed(): DB {
       "場の重力をテーマに、SNSそのものを設計し直す場。マウントと自己保身の敬語を持ち込まないこと。",
     adminIds: [admin.id],
     createdAt: now - 1000 * 60 * 60 * 24 * 30,
+    lifecycle: "active",
+    lifecycleSince: now - 1000 * 60 * 60 * 24 * 30,
+    lastAdminActionAt: now,
   };
   const sLang: Space = {
     id: "s_lang",
@@ -97,6 +105,9 @@ function seed(): DB {
       "日本語というOSのソースコード(敬語・主語省略・文脈依存)をデバッグする場。",
     adminIds: [admin.id],
     createdAt: now - 1000 * 60 * 60 * 24 * 14,
+    lifecycle: "active",
+    lifecycleSince: now - 1000 * 60 * 60 * 24 * 14,
+    lastAdminActionAt: now,
   };
   spaces.set(sTopos.id, sTopos);
   spaces.set(sLang.id, sLang);
@@ -193,15 +204,77 @@ function seed(): DB {
   };
 }
 
-function getDB(): DB {
+async function initDB(): Promise<void> {
   if (!g.__toposDB || g.__toposDB.schemaVersion !== SCHEMA_VERSION) {
-    const loaded = loadDBSync(SCHEMA_VERSION);
+    const loaded = await loadDB(SCHEMA_VERSION);
     g.__toposDB = loaded ?? seed();
     if (!loaded) scheduleSave(g.__toposDB);
   }
+}
+
+try {
+  await initDB();
+} catch (err) {
+  console.error("[topos] db initialization failed", err);
+  g.__toposDB = seed();
+  scheduleSave(g.__toposDB);
+}
+
+function getDB(): DB {
+  if (!g.__toposDB || g.__toposDB.schemaVersion !== SCHEMA_VERSION) {
+    g.__toposDB = seed();
+    scheduleSave(g.__toposDB);
+  }
   // 後方互換: 既存 DB に gravityEvents が無い場合 (古いプロセスの globalThis キャッシュ等)
   if (!g.__toposDB.gravityEvents) g.__toposDB.gravityEvents = [];
+  // 後方互換: lifecycle フィールド未設定の Space を補完 (プロセス内マイグレ)
+  for (const s of g.__toposDB.spaces.values()) {
+    if (!s.lifecycle) {
+      s.lifecycle = "active";
+      s.lifecycleSince = s.createdAt;
+      s.lastAdminActionAt = Date.now();
+    }
+  }
   return g.__toposDB;
+}
+
+// 場のライフサイクルを遅延評価し、必要なら状態遷移を書き戻す。
+// succession 期限切れで立候補者がいる場合はその場で承認処理も行う。
+function touchLifecycle(space: Space): Space {
+  const now = Date.now();
+  const snap = evaluateLifecycle(space, now);
+  if (snap.changed) {
+    space.lifecycle = snap.lifecycle;
+    space.lifecycleSince = snap.lifecycleSince;
+    space.successionDeadline = snap.successionDeadline;
+    space.candidates = snap.candidates;
+    space.frozenAt = snap.frozenAt;
+    persist();
+  }
+  // succession 期限切れ × 立候補あり → 自動承認
+  if (
+    space.lifecycle === "succession" &&
+    space.successionDeadline !== undefined &&
+    now >= space.successionDeadline &&
+    (space.candidates?.length ?? 0) > 0
+  ) {
+    const db = g.__toposDB;
+    const winner = space.candidates![0];
+    const newAdmin = db?.users.get(winner.userId);
+    if (newAdmin && !newAdmin.isAdminOf.includes(space.id)) {
+      newAdmin.isAdminOf.push(space.id);
+    }
+    if (!space.adminIds.includes(winner.userId)) {
+      space.adminIds.push(winner.userId);
+    }
+    space.lifecycle = "active";
+    space.lifecycleSince = now;
+    space.lastAdminActionAt = now;
+    space.successionDeadline = undefined;
+    space.candidates = undefined;
+    persist();
+  }
+  return space;
 }
 
 function persist(): void {
@@ -211,11 +284,14 @@ function persist(): void {
 // ---- 公開API ----
 
 export function listSpaces(): Space[] {
-  return [...getDB().spaces.values()].sort((a, b) => b.createdAt - a.createdAt);
+  const spaces = [...getDB().spaces.values()];
+  for (const s of spaces) touchLifecycle(s);
+  return spaces.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function getSpace(id: string): Space | undefined {
-  return getDB().spaces.get(id);
+  const s = getDB().spaces.get(id);
+  return s ? touchLifecycle(s) : undefined;
 }
 
 export function listThreads(spaceId: string): Thread[] {
@@ -283,7 +359,10 @@ export function createThread(input: {
   createdBy: string;
 }): Thread | { error: string } {
   const db = getDB();
-  if (!db.spaces.has(input.spaceId)) return { error: "space_not_found" };
+  const space = db.spaces.get(input.spaceId);
+  if (!space) return { error: "space_not_found" };
+  touchLifecycle(space);
+  if (!isWritable(space)) return { error: "space_archived" };
   if (!input.title.trim()) return { error: "empty_title" };
   const t: Thread = {
     id: `t_${Math.random().toString(36).slice(2, 10)}`,
@@ -307,6 +386,11 @@ export function createPost(input: {
   const db = getDB();
   const thread = db.threads.get(input.threadId);
   if (!thread) return { error: "thread_not_found" };
+  const space = db.spaces.get(thread.spaceId);
+  if (space) {
+    touchLifecycle(space);
+    if (!isWritable(space)) return { error: "space_archived" };
+  }
   const body = input.body.trim();
   if (!body) return { error: "empty_body" };
   if (body.length > 2000) return { error: "too_long" };
@@ -350,6 +434,11 @@ export function react(input: {
   const db = getDB();
   const post = db.posts.get(input.postId);
   if (!post) return { error: "post_not_found" };
+  const space = db.spaces.get(post.spaceId);
+  if (space) {
+    touchLifecycle(space);
+    if (!isWritable(space)) return { error: "space_archived" };
+  }
   if (post.authorId === input.byUserId) return { error: "self_reaction" };
 
   const key = `${input.byUserId}:${input.postId}:${input.kind}`;
@@ -384,6 +473,11 @@ export function reportPost(input: {
   const db = getDB();
   const post = db.posts.get(input.postId);
   if (!post) return { error: "post_not_found" };
+  const space = db.spaces.get(post.spaceId);
+  if (space) {
+    touchLifecycle(space);
+    if (!isWritable(space)) return { error: "space_archived" };
+  }
   if (post.authorId === input.byUserId) return { error: "self_report" };
 
   const key = `${input.byUserId}:${input.postId}`;
@@ -448,6 +542,12 @@ export function moderatePost(input: {
       post.isPinned = false;
       break;
   }
+  // 管理者の活動を lifecycle 判定に反映
+  const space = db.spaces.get(post.spaceId);
+  if (space) {
+    space.lastAdminActionAt = Date.now();
+    touchLifecycle(space);
+  }
   db.gravityEvents.push({
     postId: post.id,
     type: input.action,
@@ -473,13 +573,14 @@ export function isAdmin(userId: string, spaceId: string): boolean {
 }
 
 // ホーム用: 全スレッドを「最新投稿の活発さ」で並べ替える
-export function listHotThreads(limit = 5): Array<{
+export function listHotThreads(limit = 5, opts?: { includeArchived?: boolean }): Array<{
   thread: Thread;
   space: Space;
   postCount: number;
   lastPostAt: number;
 }> {
   const db = getDB();
+  const includeArchived = opts?.includeArchived ?? false;
   const allPosts = [...db.posts.values()];
   const result: Array<{
     thread: Thread;
@@ -490,6 +591,8 @@ export function listHotThreads(limit = 5): Array<{
   for (const thread of db.threads.values()) {
     const space = db.spaces.get(thread.spaceId);
     if (!space) continue;
+    touchLifecycle(space);
+    if (!includeArchived && space.lifecycle === "archived") continue;
     const posts = allPosts.filter((p) => p.threadId === thread.id);
     const lastPostAt = posts.reduce(
       (acc, p) => Math.max(acc, p.createdAt),
@@ -560,6 +663,8 @@ export function updateSpaceGravityConfig(
   } else {
     space.gravityConfig = sanitizeGravityConfig(config);
   }
+  space.lastAdminActionAt = Date.now();
+  touchLifecycle(space);
   db.moderation.push({
     id: `m_${Math.random().toString(36).slice(2, 10)}`,
     spaceId,
@@ -604,4 +709,114 @@ function sanitizeGravityConfig(cfg: SpaceGravityConfig): SpaceGravityConfig {
     if (Object.keys(rw2).length > 0) out.reactionWeight = rw2;
   }
   return out;
+}
+
+// succession 中の立候補を取り下げる
+export function withdrawCandidacy(
+  spaceId: string,
+  byUserId: string
+): Space | { error: string } {
+  const db = getDB();
+  const space = db.spaces.get(spaceId);
+  if (!space) return { error: "space_not_found" };
+  touchLifecycle(space);
+  if (space.lifecycle !== "succession") return { error: "not_in_succession" };
+  const list = space.candidates ?? [];
+  const next = list.filter((c) => c.userId !== byUserId);
+  if (next.length === list.length) return { error: "not_a_candidate" };
+  space.candidates = next;
+  persist();
+  return space;
+}
+
+// 管理者が活動猶予を宣言 (最大 MAX_VACATION_MS)
+export function declareVacation(
+  spaceId: string,
+  byUserId: string,
+  durationMs: number
+): Space | { error: string } {
+  const db = getDB();
+  const space = db.spaces.get(spaceId);
+  if (!space) return { error: "space_not_found" };
+  const u = db.users.get(byUserId);
+  if (!u || !u.isAdminOf.includes(spaceId)) return { error: "forbidden" };
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    return { error: "invalid_duration" };
+  }
+  const capped = Math.min(durationMs, MAX_VACATION_MS);
+  space.vacationUntil = Date.now() + capped;
+  // vacation 宣言自体を管理者活動として扱う
+  space.lastAdminActionAt = Date.now();
+  touchLifecycle(space);
+  persist();
+  return space;
+}
+
+// ---- 場のライフサイクル / 継承 ----
+
+// succession 期間中の立候補。誰でも可能 (閾値は将来導入)。
+export function applyForSpaceAdmin(
+  spaceId: string,
+  byUserId: string
+): Space | { error: string } {
+  const db = getDB();
+  const space = db.spaces.get(spaceId);
+  if (!space) return { error: "space_not_found" };
+  touchLifecycle(space);
+  if (space.lifecycle !== "succession") return { error: "not_in_succession" };
+  const user = db.users.get(byUserId);
+  if (!user) return { error: "user_not_found" };
+  const list = space.candidates ?? [];
+  if (list.some((c) => c.userId === byUserId)) {
+    return { error: "already_candidate" };
+  }
+  list.push({ userId: byUserId, statedAt: Date.now() });
+  space.candidates = list;
+  persist();
+  return space;
+}
+
+// succession 期限到来時の確定処理。
+//  - 立候補1名以上: 先頭1名を admin に昇格して active へ
+//  - 立候補ゼロ   : archived へ (時間凍結)
+// 呼び出しは外部 (cron 不要、読み取り時の遅延評価でも可) を想定。
+export function finalizeSuccession(
+  spaceId: string
+): Space | { error: string } {
+  const db = getDB();
+  const space = db.spaces.get(spaceId);
+  if (!space) return { error: "space_not_found" };
+  touchLifecycle(space);
+  if (space.lifecycle !== "succession") return { error: "not_in_succession" };
+  const now = Date.now();
+  const deadline = space.successionDeadline ?? now;
+  if (now < deadline) return { error: "not_yet" };
+
+  const candidates = space.candidates ?? [];
+  if (candidates.length === 0) {
+    space.lifecycle = "archived";
+    space.lifecycleSince = now;
+    space.frozenAt = now;
+    space.successionDeadline = undefined;
+    space.candidates = undefined;
+    persist();
+    return space;
+  }
+
+  // MVP: 立候補順で先頭1名を承認 (将来: 投票や質量しきい値)
+  const winner = candidates[0];
+  const newAdmin = db.users.get(winner.userId);
+  if (newAdmin && !newAdmin.isAdminOf.includes(spaceId)) {
+    newAdmin.isAdminOf.push(spaceId);
+  }
+  if (!space.adminIds.includes(winner.userId)) {
+    space.adminIds.push(winner.userId);
+  }
+  space.lifecycle = "active";
+  space.lifecycleSince = now;
+  space.lastAdminActionAt = now;
+  space.successionDeadline = undefined;
+  space.candidates = undefined;
+  persist();
+  return space;
 }

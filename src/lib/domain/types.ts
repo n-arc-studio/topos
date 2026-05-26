@@ -37,6 +37,13 @@ export interface User {
   anonymousMass: number; // 匿名で得た質量 (公的権威には変換しない)
 }
 
+export type SpaceLifecycle = "active" | "dormant" | "succession" | "archived";
+
+export interface SpaceCandidate {
+  userId: UserId;
+  statedAt: number;
+}
+
 export interface Space {
   id: SpaceId;
   name: string;
@@ -45,6 +52,14 @@ export interface Space {
   createdAt: number;
   // 場ごとの物理係数 (未指定は既定値)
   gravityConfig?: SpaceGravityConfig;
+  // ライフサイクル管理用メタデータ
+  lifecycle?: SpaceLifecycle;
+  lifecycleSince?: number;
+  lastAdminActionAt?: number;
+  successionDeadline?: number;
+  candidates?: SpaceCandidate[];
+  frozenAt?: number;
+  vacationUntil?: number;
 }
 
 export interface Thread {
