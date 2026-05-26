@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { currentUser } from "@/lib/session/identity";
+import packageJson from "../../package.json";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -17,6 +18,8 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const me = await currentUser();
+  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? packageJson.version;
+
   return (
     <html
       lang="ja"
@@ -60,7 +63,10 @@ export default async function RootLayout({
         </header>
         <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6">{children}</main>
         <footer className="border-t border-[var(--border)] text-xs text-[var(--muted)]">
-          <div className="max-w-3xl mx-auto px-4 py-3">場の重力を測るSNS · MVP</div>
+          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <span>場の重力を測るSNS · MVP</span>
+            <span className="font-mono opacity-80">v{appVersion}</span>
+          </div>
         </footer>
       </body>
     </html>

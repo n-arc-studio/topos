@@ -65,6 +65,19 @@ npm run test:coverage
 GitHub Actions では [`.github/workflows/qa.yml`](.github/workflows/qa.yml) で
 `npm run test:run` を push / pull_request 時に実行します。
 
+本番デプロイは [`.github/workflows/deploy-vercel.yml`](.github/workflows/deploy-vercel.yml) で実行します。
+`main` への push で QA Tests が成功した後に起動し、次の順で処理します。
+
+1. `package.json` の `version` と Actions の run 番号 / commit SHA からアプリ版番号を生成
+2. 生成した値を `NEXT_PUBLIC_APP_VERSION` としてビルドに注入
+3. Vercel 本番環境へデプロイ
+
+GitHub Secrets に以下が必要です。
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
 ## 環境変数
 
 Neon など外部 PostgreSQL を使う場合は、次を設定してください。
@@ -76,6 +89,7 @@ Neon など外部 PostgreSQL を使う場合は、次を設定してください
 任意:
 
 - `PORT`: `npm run start` 実行時のポート番号
+- `NEXT_PUBLIC_APP_VERSION`: フッターに表示する版番号（未設定時は `package.json` の `version` を表示）
 
 ## データ永続化 (MVP)
 
