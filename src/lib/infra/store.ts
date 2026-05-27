@@ -50,6 +50,25 @@ const MASS_WEIGHT: Record<ReactionKind, number> = {
   agree: 2,
 };
 
+// 投稿/返信の基礎加算。
+const POST_MASS_GAIN = 1;
+
+// リアクション実行者には投稿者加算の一部のみ付与する。
+const REACTOR_BONUS_RATE = 0.25;
+
+function applyMass(
+  user: User | undefined,
+  mode: "anonymous" | "named",
+  delta: number
+): void {
+  if (!user || !Number.isFinite(delta) || delta === 0) return;
+  if (mode === "named") {
+    user.publicMass = Math.round((user.publicMass + delta) * 100) / 100;
+    return;
+  }
+  user.anonymousMass = Math.round((user.anonymousMass + delta) * 100) / 100;
+}
+
 function emptyReactions(): Post["reactions"] {
   return { like: 0, useful: 0, laugh: 0, tsukkomi: 0, agree: 0 };
 }
@@ -420,6 +439,10 @@ export function createPost(input: {
     ...newPostBase(),
   };
   db.posts.set(p.id, p);
+
+  // 投稿/返信そのものにも質量を付与する。
+  applyMass(author, mode, POST_MASS_GAIN);
+
   persist();
   return p;
 }
@@ -454,11 +477,13 @@ export function react(input: {
 
   // 質量を著者に加算 (匿名と記名で別管理)
   const author = db.users.get(post.authorId);
-  if (author) {
-    const w = MASS_WEIGHT[input.kind];
-    if (post.identityMode === "named") author.publicMass += w;
-    else author.anonymousMass += w;
-  }
+  const w = MASS_WEIGHT[input.kind];
+  applyMass(author, post.identityMode, w);
+
+  // リアクション実行者にも少量の質量を付与する。
+  const reactor = db.users.get(input.byUserId);
+  applyMass(reactor, post.identityMode, w * REACTOR_BONUS_RATE);
+
   persist();
   return post;
 }
