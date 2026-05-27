@@ -20,6 +20,10 @@ export function ProfileForm({ initialName }: { initialName: string }) {
       });
       const json = await res.json();
       if (!res.ok) {
+        if (res.status === 401) {
+          router.push("/login?next=/profile");
+          return;
+        }
         setMsg(json.error ?? "失敗");
         return;
       }

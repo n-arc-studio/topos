@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { LogoutButton } from "@/components/LogoutButton";
 import { currentUser } from "@/lib/session/identity";
 import packageJson from "../../package.json";
 
@@ -38,26 +39,46 @@ export default async function RootLayout({
               >
                 思想
               </Link>
-              {me.isAdminOf.length > 0 && (
-                <Link
-                  href="/admin"
-                  className="text-[var(--accent)] hover:underline"
-                >
-                  管理
-                </Link>
+              {me ? (
+                <>
+                  {me.isAdminOf.length > 0 && (
+                    <Link
+                      href="/admin"
+                      className="text-[var(--accent)] hover:underline"
+                    >
+                      管理
+                    </Link>
+                  )}
+                  <Link
+                    href="/profile"
+                    className="hover:text-[var(--accent)] transition"
+                  >
+                    {me.displayName}
+                  </Link>{" "}
+                  <span className="opacity-60">
+                    / 公=
+                    <span className="text-[var(--foreground)]">{me.publicMass}</span>{" "}
+                    匿=
+                    <span className="text-[var(--foreground)]">{me.anonymousMass}</span>
+                  </span>
+                  <LogoutButton />
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="hover:text-[var(--accent)] transition"
+                  >
+                    ログイン
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="hover:text-[var(--accent)] transition"
+                  >
+                    登録
+                  </Link>
+                </>
               )}
-              <Link
-                href="/profile"
-                className="hover:text-[var(--accent)] transition"
-              >
-                {me.displayName}
-              </Link>{" "}
-              <span className="opacity-60">
-                / 公=
-                <span className="text-[var(--foreground)]">{me.publicMass}</span>{" "}
-                匿=
-                <span className="text-[var(--foreground)]">{me.anonymousMass}</span>
-              </span>
             </div>
           </div>
         </header>

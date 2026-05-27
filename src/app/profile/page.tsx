@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/session/identity";
 import { ProfileForm } from "@/components/ProfileForm";
 
 export default async function ProfilePage() {
   const me = await currentUser();
+  if (!me) redirect("/login?next=/profile");
   return (
     <div className="space-y-6">
       <section>

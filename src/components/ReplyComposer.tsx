@@ -40,6 +40,12 @@ export function ReplyComposer({
           });
           const json = await res.json();
           if (!res.ok) {
+            if (res.status === 401) {
+              router.push(
+                `/login?next=${encodeURIComponent(window.location.pathname)}`
+              );
+              return;
+            }
             setErr(json.error ?? "失敗");
             return;
           }

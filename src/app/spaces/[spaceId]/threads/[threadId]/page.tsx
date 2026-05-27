@@ -19,6 +19,7 @@ import {
   type GravityContext,
 } from "@/lib/domain/gravity";
 import type { Post } from "@/lib/domain/types";
+import { AuthGate } from "@/components/AuthGate";
 import { currentUser } from "@/lib/session/identity";
 import { PostComposer } from "@/components/PostComposer";
 import { PostCard } from "@/components/PostCard";
@@ -40,7 +41,7 @@ export default async function ThreadPage({
   const currentThread = thread;
 
   const me = await currentUser();
-  const meIsAdmin = isAdmin(me.id, currentSpace.id);
+  const meIsAdmin = me ? isAdmin(me.id, currentSpace.id) : false;
   const layered = view === "layers";
 
   const now = Date.now();
@@ -139,11 +140,17 @@ export default async function ThreadPage({
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-        <PostComposer threadId={currentThread.id} canBeAnonymous={!meIsAdmin} />
-        {meIsAdmin && (
-          <p className="text-xs text-[var(--warn)] mt-2">
-            あなたはこの場の管理者です。記名投稿のみ可能です(責任の可視化のため)。
-          </p>
+        {me ? (
+          <>
+            <PostComposer threadId={currentThread.id} canBeAnonymous={!meIsAdmin} />
+            {meIsAdmin && (
+              <p className="text-xs text-[var(--warn)] mt-2">
+                あなたはこの場の管理者です。記名投稿のみ可能です(責任の可視化のため)。
+              </p>
+            )}
+          </>
+        ) : (
+          <AuthGate message="投稿や返信にはログインが必要です。" />
         )}
       </section>
 

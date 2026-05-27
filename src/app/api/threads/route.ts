@@ -4,6 +4,9 @@ import { currentUser } from "@/lib/session/identity";
 
 export async function POST(req: Request) {
   const me = await currentUser();
+  if (!me) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   const body = (await req.json().catch(() => null)) as {
     spaceId?: string;
     title?: string;

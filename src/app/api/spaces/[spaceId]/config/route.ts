@@ -8,6 +8,9 @@ export async function POST(
 ) {
   const { spaceId } = await ctx.params;
   const me = await currentUser();
+  if (!me) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   let body: unknown;
   try {
     body = await req.json();

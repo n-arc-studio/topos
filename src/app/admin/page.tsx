@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   getPost,
   getSpace,
@@ -19,6 +19,7 @@ function fmt(ts: number) {
 
 export default async function AdminPage() {
   const me = await currentUser();
+  if (!me) redirect("/login?next=/admin");
   if (!isAnyAdmin(me.id)) notFound();
 
   const spaceIds = me.isAdminOf;

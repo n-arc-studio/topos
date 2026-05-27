@@ -5,6 +5,9 @@ import type { IdentityMode } from "@/lib/domain/types";
 
 export async function POST(req: Request) {
   const me = await currentUser();
+  if (!me) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   const body = (await req.json().catch(() => null)) as {
     threadId?: string;
     body?: string;

@@ -12,6 +12,7 @@ Topos は、フォロワー数ではなく「場への寄与」で投稿の見�
 
 ## 現在の主な機能
 
+- Credentials ベースのユーザー登録 / ログイン / ログアウト
 - 場 / スレッド / 投稿の作成
 - 投稿の記名・匿名切り替え
 - 投稿へのリアクション (`like`, `agree`, `useful`, `laugh`, `tsukkomi`)
@@ -65,11 +66,17 @@ npm run start
 
 ## 環境変数
 
-`DATABASE_URL` は必須です。未設定のまま起動すると永続化層の初期化で失敗します。
+`DATABASE_URL` と `NEXTAUTH_SECRET` は必須です。未設定のまま起動すると永続化層または認証層の初期化で失敗します。
 
 - `DATABASE_URL`
 	- 外部 PostgreSQL 接続文字列
 	- Neon/PostgreSQL 永続化に使用
+- `NEXTAUTH_SECRET`
+	- Auth.js のセッション署名に使用
+- `NEXTAUTH_URL`
+	- 本番URLを明示したい場合に設定
+- `INITIAL_ADMIN_EMAIL`
+	- このメールアドレスで登録したアカウントを既存の `u_admin` へ接続
 - `PORT`
 	- `npm run start` の待受ポート
 - `NEXT_PUBLIC_APP_VERSION`
@@ -84,9 +91,10 @@ npm run start
 ### Neon を使う最小手順
 
 1. Neon でプロジェクトと DB を作成し、接続文字列を取得する
-2. `.env.local` に `DATABASE_URL=...` を設定する
-3. Vercel の Environment Variables に同じ `DATABASE_URL` を設定する
-4. `npm run dev` または `npm run start` で起動し、投稿作成後にデータが保持されることを確認する
+2. `.env.local` に `DATABASE_URL=...` と `NEXTAUTH_SECRET=...` を設定する
+3. 管理者アカウントを既存の `u_admin` に紐づけたい場合は `INITIAL_ADMIN_EMAIL=...` を設定する
+4. Vercel の Environment Variables に同じ値を設定する
+5. `npm run dev` または `npm run start` で起動し、アカウント登録と投稿作成後にデータが保持されることを確認する
 
 ## テスト
 
@@ -119,6 +127,8 @@ npm run test:coverage
 
 ## API エンドポイント (実装済み)
 
+- `POST /api/auth/signup`
+- `GET|POST /api/auth/[...nextauth]`
 - `GET /api/me`
 - `POST /api/profile`
 - `POST /api/threads`

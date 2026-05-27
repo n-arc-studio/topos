@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AuthGate } from "@/components/AuthGate";
 import { getSpace, listThreads, getUser } from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 import { NewThreadForm } from "@/components/NewThreadForm";
@@ -43,7 +44,11 @@ export default async function SpacePage({
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
         <h2 className="text-sm font-medium mb-2">新しいスレッドを建てる</h2>
-        <NewThreadForm spaceId={space.id} />
+        {me ? (
+          <NewThreadForm spaceId={space.id} />
+        ) : (
+          <AuthGate message="スレッド作成にはログインが必要です。" />
+        )}
       </section>
 
       <section>
@@ -79,7 +84,7 @@ export default async function SpacePage({
       </section>
 
       <p className="text-xs text-[var(--muted)]">
-        あなた: {me.displayName}
+        あなた: {me?.displayName ?? "未ログイン"}
       </p>
     </div>
   );

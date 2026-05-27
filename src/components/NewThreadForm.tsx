@@ -22,6 +22,10 @@ export function NewThreadForm({ spaceId }: { spaceId: string }) {
           });
           const json = await res.json();
           if (!res.ok) {
+            if (res.status === 401) {
+              router.push(`/login?next=${encodeURIComponent(`/spaces/${spaceId}`)}`);
+              return;
+            }
             setErr(json.error ?? "失敗");
             return;
           }
