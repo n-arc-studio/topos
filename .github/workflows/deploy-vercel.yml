@@ -44,6 +44,19 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      - name: Validate DATABASE_URL
+        shell: bash
+        run: |
+          ENV_FILE=".vercel/.env.production.local"
+          if [[ ! -f "$ENV_FILE" ]]; then
+            echo "Expected Vercel environment file not found: $ENV_FILE" >&2
+            exit 1
+          fi
+          if ! grep -q '^DATABASE_URL=' "$ENV_FILE"; then
+            echo "DATABASE_URL is missing from Vercel production environment." >&2
+            exit 1
+          fi
+
       - name: Build Production Artifacts
         run: npx vercel build --prod --token="${VERCEL_TOKEN}"
         env:

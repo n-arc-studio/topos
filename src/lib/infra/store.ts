@@ -216,14 +216,12 @@ try {
   await initDB();
 } catch (err) {
   console.error("[topos] db initialization failed", err);
-  g.__toposDB = seed();
-  scheduleSave(g.__toposDB);
+  throw err;
 }
 
 function getDB(): DB {
   if (!g.__toposDB || g.__toposDB.schemaVersion !== SCHEMA_VERSION) {
-    g.__toposDB = seed();
-    scheduleSave(g.__toposDB);
+    throw new Error("[topos] db is not initialized");
   }
   // 後方互換: 既存 DB に gravityEvents が無い場合 (古いプロセスの globalThis キャッシュ等)
   if (!g.__toposDB.gravityEvents) g.__toposDB.gravityEvents = [];

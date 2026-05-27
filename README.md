@@ -33,9 +33,7 @@ Topos は、フォロワー数ではなく「場への寄与」で投稿の見�
 - 言語: TypeScript
 - UI: React 19
 - テスト: Vitest
-- 永続化:
-	- `DATABASE_URL` 設定時: PostgreSQL (Neon ドライバ)
-	- 未設定時: JSON ファイル (`data/topos-db.json`)
+- 永続化: PostgreSQL (Neon ドライバ)
 
 ## セットアップ
 
@@ -67,50 +65,28 @@ npm run start
 
 ## 環境変数
 
-必須ではありません。未設定でもローカル JSON 永続化で動作します。
+`DATABASE_URL` は必須です。未設定のまま起動すると永続化層の初期化で失敗します。
 
 - `DATABASE_URL`
 	- 外部 PostgreSQL 接続文字列
-	- 設定時は DB 永続化を使用
+	- Neon/PostgreSQL 永続化に使用
 - `PORT`
 	- `npm run start` の待受ポート
 - `NEXT_PUBLIC_APP_VERSION`
 	- フッター表示用バージョン文字列
-- `TOPOS_BACKUP_KEEP`
-	- バックアップ保持世代数 (既定: `20`)
 
 ## 永続化と運用上の注意
 
-- ローカル開発で `DATABASE_URL` 未設定の場合、データは `data/topos-db.json` に保存されます。
-- `data/` は Git 管理対象外です。
-- Vercel 本番環境ではサーバレスファイルシステムに対する書き込み永続化は保証されません。
-	- 本番運用では `DATABASE_URL` を設定し、外部 DB を使用してください。
+- ローカル開発でも `DATABASE_URL` が必要です。
+- Vercel 本番環境でも `DATABASE_URL` を設定し、外部 DB を使用してください。
+- DB 接続に失敗すると、アプリは JSON へフォールバックせず明示的にエラーになります。
 
 ### Neon を使う最小手順
 
 1. Neon でプロジェクトと DB を作成し、接続文字列を取得する
 2. `.env.local` に `DATABASE_URL=...` を設定する
 3. Vercel の Environment Variables に同じ `DATABASE_URL` を設定する
-4. 投稿作成後に再デプロイし、データが保持されることを確認する
-
-## バックアップ / 復元
-
-バックアップ:
-
-```bash
-npm run backup
-```
-
-- `data/backups/topos-db-<timestamp>.json` に保存されます
-- 古い世代は `TOPOS_BACKUP_KEEP` に従って自動削除されます
-
-復元 (Windows):
-
-```bash
-copy /Y data\backups/topos-db-<timestamp>.json data\topos-db.json
-```
-
-復元後はアプリを再起動してください。
+4. `npm run dev` または `npm run start` で起動し、投稿作成後にデータが保持されることを確認する
 
 ## テスト
 
@@ -139,6 +115,7 @@ npm run test:coverage
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
+- `DATABASE_URL` を含む Production Environment Variables (Vercel 側)
 
 ## API エンドポイント (実装済み)
 

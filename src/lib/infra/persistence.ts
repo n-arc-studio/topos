@@ -1,11 +1,3 @@
-import {
-  promises as fs,
-  existsSync,
-  readFileSync,
-  mkdirSync,
-  renameSync,
-} from "node:fs";
-import path from "node:path";
 import { neon } from "@neondatabase/serverless";
 import type {
   GravityEvent,
@@ -16,9 +8,7 @@ import type {
   User,
 } from "@/lib/domain/types";
 
-// MVP のメモリストアを JSON ファイルへ永続化する最小実装。
-// PostgreSQL/Prisma への移行は将来。今は「サーバ再起動後もデータが残る」
-// ことだけを満たす。
+// 永続化は Neon/PostgreSQL を前提にする。
 
 export type PersistDB = {
   schemaVersion: number;
@@ -44,11 +34,11 @@ interface SerializedDB {
   gravityEvents?: GravityEvent[];
 }
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "topos-db.json");
 const DATABASE_URL = process.env.DATABASE_URL?.trim();
-const USE_NEON = Boolean(DATABASE_URL);
-const neonSql = DATABASE_URL ? neon(DATABASE_URL) : null;
+if (!DATABASE_URL) {
+  throw new Error("DATABASE_URL is required for persistence");
+}
+const neonSql = neon(DATABASE_URL);
 let neonReady: Promise<void> | null = null;
 
 function toPersistDB(parsed: SerializedDB, expectedVersion: number): PersistDB | null {
@@ -66,12 +56,7 @@ function toPersistDB(parsed: SerializedDB, expectedVersion: number): PersistDB |
   };
 }
 
-function ensureDir() {
-  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-}
-
 async function ensureNeonTable(): Promise<void> {
-  if (!neonSql) return;
   if (!neonReady) {
     neonReady = neonSql`
       CREATE TABLE IF NOT EXISTS topos_state (
@@ -84,44 +69,7 @@ async function ensureNeonTable(): Promise<void> {
   await neonReady;
 }
 
-function loadDBFromFile(expectedVersion: number): PersistDB | null {
-  if (!existsSync(DATA_FILE)) return null;
-  let raw: string;
-  try {
-    raw = readFileSync(DATA_FILE, "utf-8");
-  } catch (err) {
-    console.error("[topos] persistence read failed", err);
-    return null;
-  }
-  let parsed: SerializedDB;
-  try {
-    parsed = JSON.parse(raw) as SerializedDB;
-  } catch (err) {
-    // 壊れた JSON は隔離して空 DB で起動する。
-    const ts = new Date().toISOString().replace(/[:.]/g, "-");
-    const quarantine = path.join(DATA_DIR, `topos-db.corrupt-${ts}.json`);
-    try {
-      ensureDir();
-      renameSync(DATA_FILE, quarantine);
-      console.error(
-        `[topos] persistence file was corrupt, quarantined to ${quarantine}`,
-        err
-      );
-    } catch (renameErr) {
-      console.error("[topos] persistence quarantine failed", renameErr);
-    }
-    return null;
-  }
-  try {
-    return toPersistDB(parsed, expectedVersion);
-  } catch (err) {
-    console.error("[topos] persistence shape invalid", err);
-    return null;
-  }
-}
-
 async function loadDBFromNeon(expectedVersion: number): Promise<PersistDB | null> {
-  if (!neonSql) return null;
   try {
     await ensureNeonTable();
     const rows = await neonSql`SELECT payload FROM topos_state WHERE id = 1 LIMIT 1`;
@@ -133,13 +81,12 @@ async function loadDBFromNeon(expectedVersion: number): Promise<PersistDB | null
     return toPersistDB(payload as SerializedDB, expectedVersion);
   } catch (err) {
     console.error("[topos] neon load failed", err);
-    return null;
+    throw err;
   }
 }
 
 export async function loadDB(expectedVersion: number): Promise<PersistDB | null> {
-  if (USE_NEON) return loadDBFromNeon(expectedVersion);
-  return loadDBFromFile(expectedVersion);
+  return loadDBFromNeon(expectedVersion);
 }
 
 let saveTimer: NodeJS.Timeout | null = null;
@@ -159,15 +106,7 @@ function serialize(db: PersistDB): SerializedDB {
   };
 }
 
-async function saveDBToFile(db: PersistDB): Promise<void> {
-  ensureDir();
-  const tmp = `${DATA_FILE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(serialize(db), null, 2), "utf-8");
-  await fs.rename(tmp, DATA_FILE);
-}
-
 async function saveDBToNeon(db: PersistDB): Promise<void> {
-  if (!neonSql) return;
   await ensureNeonTable();
   const payload = JSON.stringify(serialize(db));
   await neonSql`
@@ -188,11 +127,7 @@ export function scheduleSave(db: PersistDB): void {
     pendingDB = null;
     if (!target) return;
     try {
-      if (USE_NEON) {
-        await saveDBToNeon(target);
-      } else {
-        await saveDBToFile(target);
-      }
+      await saveDBToNeon(target);
     } catch (err) {
       console.error("[topos] persistence save failed", err);
     }
