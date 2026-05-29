@@ -6,6 +6,8 @@ import {
   listSpaces,
 } from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
+import { AdminSpaceCreateForm } from "@/components/AdminSpaceCreateForm";
+import { AdminDeleteButton } from "@/components/AdminDeleteButton";
 
 function fmt(ts: number) {
   return new Date(ts).toLocaleString("ja-JP");
@@ -30,6 +32,10 @@ export default async function AdminPage() {
         <p className="text-sm text-[var(--muted)] mt-1">
           初期管理者の指名と、全体の場の状態確認を行います。
         </p>
+      </section>
+
+      <section className="space-y-3">
+        <AdminSpaceCreateForm />
       </section>
 
       <section className="space-y-3">
@@ -62,6 +68,13 @@ export default async function AdminPage() {
                   >
                     この場を管理する →
                   </Link>
+                </div>
+                <div className="mt-2">
+                  <AdminDeleteButton
+                    endpoint={`/api/spaces/${space.id}`}
+                    label="この場を削除"
+                    confirmMessage={`場「${space.name}」を削除します。配下のスレッドとコメントも全て削除されます。よろしいですか?`}
+                  />
                 </div>
               </li>
             ))}

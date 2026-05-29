@@ -3,9 +3,12 @@ import { notFound, redirect } from "next/navigation";
 import {
   getPost,
   getSpace,
+  getThread,
   getUser,
   isAdmin,
   isPlatformAdmin,
+  listThreads,
+  listPosts,
   listModerationLog,
   listReportedPosts,
   listSunkPosts,
@@ -14,6 +17,8 @@ import { currentUser } from "@/lib/session/identity";
 import { ModerateButton } from "@/components/ModerateButton";
 import { SpaceConfigForm } from "@/components/SpaceConfigForm";
 import { AdminRoleForm } from "@/components/AdminRoleForm";
+import { NewThreadForm } from "@/components/NewThreadForm";
+import { AdminDeleteButton } from "@/components/AdminDeleteButton";
 
 function fmt(ts: number) {
   return new Date(ts).toLocaleString("ja-JP");
@@ -37,6 +42,11 @@ export default async function SpaceAdminPage({
   const reported = listReportedPosts([spaceId]);
   const sunk = listSunkPosts([spaceId]);
   const log = listModerationLog([spaceId], 50);
+  const threads = listThreads(spaceId);
+  const comments = threads
+    .flatMap((thread) => listPosts(thread.id))
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 80);
 
   return (
     <div className="space-y-8">
@@ -82,6 +92,94 @@ export default async function SpaceAdminPage({
           spaceName={space.name}
           initial={space.gravityConfig ?? null}
         />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">スレッド管理 ({threads.length})</h2>
+        <div className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3">
+          <p className="text-xs text-[var(--muted)] mb-2">
+            この場の管理画面から新しいスレッド作成と不要スレッドの削除ができます。
+          </p>
+          <NewThreadForm spaceId={spaceId} />
+        </div>
+        {threads.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">スレッドはありません。</p>
+        ) : (
+          <ul className="space-y-2">
+            {threads.map((thread) => (
+              <li
+                key={thread.id}
+                className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3"
+              >
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <Link
+                    href={`/spaces/${spaceId}/threads/${thread.id}`}
+                    className="font-medium hover:text-[var(--accent)] transition"
+                  >
+                    {thread.title}
+                  </Link>
+                  <span className="text-xs text-[var(--muted)]">{fmt(thread.createdAt)}</span>
+                </div>
+                <div className="mt-2 text-xs flex flex-wrap items-center gap-3">
+                  <span className="text-[var(--muted)]">{thread.id}</span>
+                  <AdminDeleteButton
+                    endpoint={`/api/threads/${thread.id}`}
+                    label="スレッド削除"
+                    confirmMessage={`スレッド「${thread.title}」を削除します。配下のコメントも全て削除されます。よろしいですか?`}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">コメント削除 ({comments.length})</h2>
+        <p className="text-xs text-[var(--muted)]">
+          直近コメントを表示しています。削除時は対象コメントの返信ツリーも同時に削除されます。
+        </p>
+        {comments.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">コメントはありません。</p>
+        ) : (
+          <ul className="space-y-2">
+            {comments.map((comment) => {
+              const author = getUser(comment.authorId);
+              const thread = getThread(comment.threadId);
+              return (
+                <li
+                  key={comment.id}
+                  className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted)] mb-1">
+                    <span>
+                      {thread?.title ?? comment.threadId}
+                      <span className="opacity-60"> / {comment.id}</span>
+                    </span>
+                    <span>{fmt(comment.createdAt)}</span>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap">{comment.body}</p>
+                  <div className="mt-2 text-xs flex flex-wrap items-center gap-3">
+                    <span className="text-[var(--muted)]">
+                      著者: {author?.displayName ?? comment.authorId}
+                    </span>
+                    <Link
+                      href={`/spaces/${spaceId}/threads/${comment.threadId}`}
+                      className="hover:text-[var(--accent)] transition"
+                    >
+                      スレッドを開く →
+                    </Link>
+                    <AdminDeleteButton
+                      endpoint={`/api/posts/${comment.id}`}
+                      label="コメント削除"
+                      confirmMessage="コメントを削除します。返信がある場合は返信ツリーも削除されます。よろしいですか?"
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
       <section className="space-y-3">

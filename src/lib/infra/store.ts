@@ -61,7 +61,6 @@ const REACTOR_BONUS_RATE = 0.25;
 const PLATFORM_ADMIN_IDS = new Set(
   [
     "u_admin",
-    "u_38b1159e",
     ...(process.env.PLATFORM_ADMIN_IDS
       ?.split(",")
       .map((id) => id.trim())
@@ -311,6 +310,31 @@ function persist(): void {
   if (g.__toposDB) scheduleSave(g.__toposDB);
 }
 
+function removePostArtifacts(db: DB, postIds: Set<string>) {
+  if (postIds.size === 0) return;
+
+  for (const postId of postIds) {
+    db.posts.delete(postId);
+  }
+
+  for (const key of [...db.reactionLog]) {
+    const parts = key.split(":");
+    if (parts.length >= 2 && postIds.has(parts[1])) {
+      db.reactionLog.delete(key);
+    }
+  }
+
+  for (const key of [...db.reportLog]) {
+    const parts = key.split(":");
+    if (parts.length >= 2 && postIds.has(parts[1])) {
+      db.reportLog.delete(key);
+    }
+  }
+
+  db.gravityEvents = db.gravityEvents.filter((e) => !postIds.has(e.postId));
+  db.moderation = db.moderation.filter((m) => !m.postId || !postIds.has(m.postId));
+}
+
 // ---- 公開API ----
 
 export function listSpaces(): Space[] {
@@ -406,6 +430,64 @@ export function createThread(input: {
   return t;
 }
 
+export function deleteThread(
+  threadId: string,
+  byUserId: string
+):
+  | {
+      id: string;
+      spaceId: string;
+      deletedPostCount: number;
+    }
+  | { error: string } {
+  const db = getDB();
+  const thread = db.threads.get(threadId);
+  if (!thread) return { error: "thread_not_found" };
+
+  const actor = db.users.get(byUserId);
+  const canManage =
+    !!actor &&
+    (actor.isAdminOf.includes(thread.spaceId) || isPlatformAdmin(byUserId));
+  if (!canManage) return { error: "forbidden" };
+
+  const postIds = new Set(
+    [...db.posts.values()]
+      .filter((p) => p.threadId === threadId)
+      .map((p) => p.id)
+  );
+  const deletedPostCount = postIds.size;
+
+  removePostArtifacts(db, postIds);
+  db.threads.delete(threadId);
+  db.moderation = db.moderation.filter((m) => m.threadId !== threadId);
+
+  const space = db.spaces.get(thread.spaceId);
+  if (space) {
+    space.lastAdminActionAt = Date.now();
+    touchLifecycle(space);
+  }
+
+  db.moderation.push({
+    id: `m_${Math.random().toString(36).slice(2, 10)}`,
+    spaceId: thread.spaceId,
+    threadId,
+    byUserId,
+    kind: "define",
+    payload: {
+      operation: "delete_thread",
+      deletedPostCount,
+    },
+    at: Date.now(),
+  });
+  persist();
+
+  return {
+    id: threadId,
+    spaceId: thread.spaceId,
+    deletedPostCount,
+  };
+}
+
 export function createPost(input: {
   threadId: string;
   authorId: string;
@@ -458,6 +540,78 @@ export function createPost(input: {
 
   persist();
   return p;
+}
+
+export function deletePost(
+  postId: string,
+  byUserId: string
+):
+  | {
+      id: string;
+      threadId: string;
+      spaceId: string;
+      deletedCount: number;
+    }
+  | { error: string } {
+  const db = getDB();
+  const target = db.posts.get(postId);
+  if (!target) return { error: "post_not_found" };
+
+  const actor = db.users.get(byUserId);
+  const canManage =
+    !!actor &&
+    (actor.isAdminOf.includes(target.spaceId) || isPlatformAdmin(byUserId));
+  if (!canManage) return { error: "forbidden" };
+
+  const threadPosts = [...db.posts.values()].filter(
+    (p) => p.threadId === target.threadId
+  );
+  const children: Record<string, string[]> = {};
+  for (const p of threadPosts) {
+    if (!p.replyTo) continue;
+    (children[p.replyTo] ||= []).push(p.id);
+  }
+
+  const toDelete = new Set<string>();
+  const stack = [postId];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || toDelete.has(current)) continue;
+    toDelete.add(current);
+    const cs = children[current] ?? [];
+    for (const childId of cs) stack.push(childId);
+  }
+
+  const deletedCount = toDelete.size;
+  removePostArtifacts(db, toDelete);
+
+  const space = db.spaces.get(target.spaceId);
+  if (space) {
+    space.lastAdminActionAt = Date.now();
+    touchLifecycle(space);
+  }
+
+  db.moderation.push({
+    id: `m_${Math.random().toString(36).slice(2, 10)}`,
+    spaceId: target.spaceId,
+    threadId: target.threadId,
+    byUserId,
+    kind: "define",
+    payload: {
+      operation: "delete_post",
+      rootPostId: postId,
+      deletedCount,
+    },
+    at: Date.now(),
+  });
+  persist();
+
+  return {
+    id: postId,
+    threadId: target.threadId,
+    spaceId: target.spaceId,
+    deletedCount,
+  };
 }
 
 export function react(input: {
@@ -606,6 +760,107 @@ export function moderatePost(input: {
 export function isAdmin(userId: string, spaceId: string): boolean {
   const u = getDB().users.get(userId);
   return !!u?.isAdminOf.includes(spaceId);
+}
+
+export function createSpace(input: {
+  name: string;
+  charter: string;
+  createdBy: string;
+}): Space | { error: string } {
+  const db = getDB();
+  if (!isPlatformAdmin(input.createdBy)) return { error: "forbidden" };
+
+  const actor = db.users.get(input.createdBy);
+  if (!actor) return { error: "user_not_found" };
+
+  const name = input.name.trim();
+  if (!name) return { error: "empty_name" };
+  if (name.length > 80) return { error: "name_too_long" };
+
+  const charter = input.charter.trim();
+  if (!charter) return { error: "empty_charter" };
+  if (charter.length > 1000) return { error: "charter_too_long" };
+
+  const id = `s_${Math.random().toString(36).slice(2, 10)}`;
+  const now = Date.now();
+  const space: Space = {
+    id,
+    name,
+    charter,
+    adminIds: [input.createdBy],
+    createdAt: now,
+    lifecycle: "active",
+    lifecycleSince: now,
+    lastAdminActionAt: now,
+  };
+
+  db.spaces.set(id, space);
+  if (!actor.isAdminOf.includes(id)) {
+    actor.isAdminOf.push(id);
+  }
+
+  db.moderation.push({
+    id: `m_${Math.random().toString(36).slice(2, 10)}`,
+    spaceId: id,
+    byUserId: input.createdBy,
+    kind: "define",
+    payload: {
+      operation: "create_space",
+    },
+    at: now,
+  });
+  persist();
+  return space;
+}
+
+export function deleteSpace(
+  spaceId: string,
+  byUserId: string
+):
+  | {
+      id: string;
+      deletedThreadCount: number;
+      deletedPostCount: number;
+    }
+  | { error: string } {
+  const db = getDB();
+  if (!isPlatformAdmin(byUserId)) return { error: "forbidden" };
+
+  const space = db.spaces.get(spaceId);
+  if (!space) return { error: "space_not_found" };
+
+  const threadIds = new Set(
+    [...db.threads.values()]
+      .filter((t) => t.spaceId === spaceId)
+      .map((t) => t.id)
+  );
+  const postIds = new Set(
+    [...db.posts.values()]
+      .filter((p) => p.spaceId === spaceId)
+      .map((p) => p.id)
+  );
+  const deletedThreadCount = threadIds.size;
+  const deletedPostCount = postIds.size;
+
+  removePostArtifacts(db, postIds);
+  for (const threadId of threadIds) {
+    db.threads.delete(threadId);
+  }
+
+  db.moderation = db.moderation.filter((m) => {
+    if (m.spaceId === spaceId) return false;
+    if (m.threadId && threadIds.has(m.threadId)) return false;
+    if (m.postId && postIds.has(m.postId)) return false;
+    return true;
+  });
+
+  db.spaces.delete(spaceId);
+  for (const u of db.users.values()) {
+    u.isAdminOf = u.isAdminOf.filter((id) => id !== spaceId);
+  }
+
+  persist();
+  return { id: spaceId, deletedThreadCount, deletedPostCount };
 }
 
 // ホーム用: 全スレッドを「最新投稿の活発さ」で並べ替える
