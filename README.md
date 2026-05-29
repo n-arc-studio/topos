@@ -79,6 +79,9 @@ npm run start
 	- 本番URLを明示したい場合に設定
 - `INITIAL_ADMIN_EMAIL`
 	- このメールアドレスで登録したアカウントを既存の `u_admin` へ接続
+- `PLATFORM_ADMIN_IDS`
+	- 全体管理者として扱う domain user id のカンマ区切りリスト
+	- 例: `u_admin,u_38b1159e`
 - `PORT`
 	- `npm run start` の待受ポート
 - `NEXT_PUBLIC_APP_VERSION`

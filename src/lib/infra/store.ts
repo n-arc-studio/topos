@@ -57,7 +57,17 @@ const POST_MASS_GAIN = 1;
 const REACTOR_BONUS_RATE = 0.25;
 
 // 初期管理や緊急時の権限操作を行えるプラットフォーム管理者。
-const PLATFORM_ADMIN_IDS = new Set(["u_admin"]);
+// 環境変数 PLATFORM_ADMIN_IDS はカンマ区切りで追加管理者を指定可能。
+const PLATFORM_ADMIN_IDS = new Set(
+  [
+    "u_admin",
+    "u_38b1159e",
+    ...(process.env.PLATFORM_ADMIN_IDS
+      ?.split(",")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0) ?? []),
+  ]
+);
 
 function applyMass(
   user: User | undefined,
