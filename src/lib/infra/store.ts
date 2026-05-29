@@ -972,6 +972,38 @@ export function updateSpaceGravityConfig(
   return space;
 }
 
+export function updateSpaceCharter(
+  spaceId: string,
+  byUserId: string,
+  charterInput: string
+): Space | { error: string } {
+  const db = getDB();
+  const space = db.spaces.get(spaceId);
+  if (!space) return { error: "space_not_found" };
+  const u = db.users.get(byUserId);
+  if (!u || (!u.isAdminOf.includes(spaceId) && !isPlatformAdmin(byUserId))) {
+    return { error: "forbidden" };
+  }
+
+  const charter = charterInput.trim();
+  if (!charter) return { error: "empty_charter" };
+  if (charter.length > 1000) return { error: "charter_too_long" };
+
+  space.charter = charter;
+  space.lastAdminActionAt = Date.now();
+  touchLifecycle(space);
+  db.moderation.push({
+    id: `m_${Math.random().toString(36).slice(2, 10)}`,
+    spaceId,
+    byUserId,
+    kind: "define",
+    payload: { charter },
+    at: Date.now(),
+  });
+  persist();
+  return space;
+}
+
 // 場管理者の付与。既存管理者またはプラットフォーム管理者のみ実行可能。
 export function grantAdminRole(
   spaceId: string,

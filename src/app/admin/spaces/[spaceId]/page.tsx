@@ -15,6 +15,7 @@ import {
 } from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 import { ModerateButton } from "@/components/ModerateButton";
+import { SpaceCharterForm } from "@/components/SpaceCharterForm";
 import { SpaceConfigForm } from "@/components/SpaceConfigForm";
 import { AdminRoleForm } from "@/components/AdminRoleForm";
 import { NewThreadForm } from "@/components/NewThreadForm";
@@ -80,6 +81,18 @@ export default async function SpaceAdminPage({
           })}
         </ul>
         <AdminRoleForm spaceId={spaceId} selfUserId={me.id} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">場の憲章</h2>
+        <p className="text-xs text-[var(--muted)]">
+          この場の目的や守る文脈を編集できます。変更は公開ページにも反映されます。
+        </p>
+        <SpaceCharterForm
+          spaceId={spaceId}
+          spaceName={space.name}
+          initialCharter={space.charter}
+        />
       </section>
 
       <section className="space-y-3">
