@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { deleteSpace, updateSpaceCharter } from "@/lib/infra/store";
+import {
+  deleteSpace,
+  persistStoreNow,
+  refreshStoreFromPersistence,
+  updateSpaceCharter,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 
 export async function PATCH(
@@ -20,11 +25,15 @@ export async function PATCH(
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
 
+  await refreshStoreFromPersistence();
+
   const result = updateSpaceCharter(spaceId, me.id, charter);
   if ("error" in result) {
     const status = result.error === "forbidden" ? 403 : 400;
     return NextResponse.json(result, { status });
   }
+
+  await persistStoreNow();
 
   return NextResponse.json({
     spaceId: result.id,
@@ -42,11 +51,15 @@ export async function DELETE(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  await refreshStoreFromPersistence();
+
   const result = deleteSpace(spaceId, me.id);
   if ("error" in result) {
     const status = result.error === "forbidden" ? 403 : 400;
     return NextResponse.json(result, { status });
   }
+
+  await persistStoreNow();
 
   return NextResponse.json(result);
 }

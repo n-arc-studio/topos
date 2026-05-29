@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createAuthUser, getOrCreateDomainUserIdForAuthUser } from "@/lib/auth/storage";
-import { ensureUser } from "@/lib/infra/store";
+import {
+  ensureUser,
+  persistStoreNow,
+  refreshStoreFromPersistence,
+} from "@/lib/infra/store";
 
 type SignupBody = {
   email?: string;
@@ -26,7 +30,9 @@ export async function POST(req: Request) {
     authUserId: created.id,
     email: created.email,
   });
+  await refreshStoreFromPersistence();
   ensureUser(mapping.domainUserId, mapping.displayName);
+  await persistStoreNow();
 
   return NextResponse.json({ ok: true, email: created.email }, { status: 201 });
 }

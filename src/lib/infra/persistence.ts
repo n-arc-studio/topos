@@ -133,3 +133,23 @@ export function scheduleSave(db: PersistDB): void {
     }
   }, 100);
 }
+
+export async function saveNow(db: PersistDB): Promise<void> {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  pendingDB = null;
+  await saveDBToNeon(db);
+}
+
+export async function flushPendingSave(): Promise<void> {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  const target = pendingDB;
+  pendingDB = null;
+  if (!target) return;
+  await saveDBToNeon(target);
+}

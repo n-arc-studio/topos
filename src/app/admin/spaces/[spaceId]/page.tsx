@@ -12,6 +12,7 @@ import {
   listModerationLog,
   listReportedPosts,
   listSunkPosts,
+  refreshStoreFromPersistence,
 } from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 import { ModerateButton } from "@/components/ModerateButton";
@@ -33,6 +34,8 @@ export default async function SpaceAdminPage({
   const { spaceId } = await params;
   const me = await currentUser();
   if (!me) redirect(`/login?next=/admin/spaces/${spaceId}`);
+
+  await refreshStoreFromPersistence();
 
   const space = getSpace(spaceId);
   if (!space) notFound();

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { grantAdminRole } from "@/lib/infra/store";
+import {
+  grantAdminRole,
+  persistStoreNow,
+  refreshStoreFromPersistence,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 
 export async function POST(
@@ -20,11 +24,15 @@ export async function POST(
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
 
+  await refreshStoreFromPersistence();
+
   const result = grantAdminRole(spaceId, me.id, targetUserId);
   if ("error" in result) {
     const status = result.error === "forbidden" ? 403 : 400;
     return NextResponse.json(result, { status });
   }
+
+  await persistStoreNow();
 
   return NextResponse.json({
     spaceId: result.id,

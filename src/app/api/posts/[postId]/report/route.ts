@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { reportPost } from "@/lib/infra/store";
+import {
+  persistStoreNow,
+  refreshStoreFromPersistence,
+  reportPost,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 
 export async function POST(
@@ -14,6 +18,7 @@ export async function POST(
   const body = (await req.json().catch(() => null)) as {
     reason?: string;
   } | null;
+  await refreshStoreFromPersistence();
   const result = reportPost({
     postId,
     byUserId: me.id,
@@ -22,5 +27,6 @@ export async function POST(
   if ("error" in result) {
     return NextResponse.json(result, { status: 400 });
   }
+  await persistStoreNow();
   return NextResponse.json(result);
 }

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createPost } from "@/lib/infra/store";
+import {
+  createPost,
+  persistStoreNow,
+  refreshStoreFromPersistence,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 import type { IdentityMode } from "@/lib/domain/types";
 
@@ -17,6 +21,7 @@ export async function POST(req: Request) {
   if (!body?.threadId || !body?.body || !body?.identityMode) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
+  await refreshStoreFromPersistence();
   const result = createPost({
     threadId: body.threadId,
     authorId: me.id,
@@ -27,5 +32,6 @@ export async function POST(req: Request) {
   if ("error" in result) {
     return NextResponse.json(result, { status: 400 });
   }
+  await persistStoreNow();
   return NextResponse.json(result, { status: 201 });
 }

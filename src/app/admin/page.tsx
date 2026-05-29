@@ -4,6 +4,7 @@ import {
   getUser,
   isPlatformAdmin,
   listSpaces,
+  refreshStoreFromPersistence,
 } from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 import { AdminSpaceCreateForm } from "@/components/AdminSpaceCreateForm";
@@ -19,6 +20,8 @@ export default async function AdminPage() {
   if (!isPlatformAdmin(me.id)) {
     redirect("/admin/spaces");
   }
+
+  await refreshStoreFromPersistence();
 
   const spaces = listSpaces();
 

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { deletePost } from "@/lib/infra/store";
+import {
+  deletePost,
+  persistStoreNow,
+  refreshStoreFromPersistence,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 
 export async function DELETE(
@@ -12,11 +16,15 @@ export async function DELETE(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  await refreshStoreFromPersistence();
+
   const result = deletePost(postId, me.id);
   if ("error" in result) {
     const status = result.error === "forbidden" ? 403 : 400;
     return NextResponse.json(result, { status });
   }
+
+  await persistStoreNow();
 
   return NextResponse.json(result);
 }

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createThread } from "@/lib/infra/store";
+import {
+  createThread,
+  persistStoreNow,
+  refreshStoreFromPersistence,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 
 export async function POST(req: Request) {
@@ -14,6 +18,7 @@ export async function POST(req: Request) {
   if (!body?.spaceId || !body?.title) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
+  await refreshStoreFromPersistence();
   const result = createThread({
     spaceId: body.spaceId,
     title: body.title,
@@ -22,5 +27,6 @@ export async function POST(req: Request) {
   if ("error" in result) {
     return NextResponse.json(result, { status: 400 });
   }
+  await persistStoreNow();
   return NextResponse.json(result, { status: 201 });
 }

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { react } from "@/lib/infra/store";
+import {
+  persistStoreNow,
+  react,
+  refreshStoreFromPersistence,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 import type { ReactionKind } from "@/lib/domain/types";
 
@@ -26,9 +30,11 @@ export async function POST(
   if (!body?.kind || !ALLOWED.includes(body.kind)) {
     return NextResponse.json({ error: "invalid_kind" }, { status: 400 });
   }
+  await refreshStoreFromPersistence();
   const result = react({ postId, byUserId: me.id, kind: body.kind });
   if ("error" in result) {
     return NextResponse.json(result, { status: 400 });
   }
+  await persistStoreNow();
   return NextResponse.json(result);
 }

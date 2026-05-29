@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { moderatePost } from "@/lib/infra/store";
+import {
+  moderatePost,
+  persistStoreNow,
+  refreshStoreFromPersistence,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 
 const ALLOWED = ["sink", "unsink", "pin", "unpin"] as const;
@@ -20,6 +24,7 @@ export async function POST(
   if (!body?.action || !ALLOWED.includes(body.action)) {
     return NextResponse.json({ error: "invalid_action" }, { status: 400 });
   }
+  await refreshStoreFromPersistence();
   const result = moderatePost({
     postId,
     byUserId: me.id,
@@ -29,5 +34,6 @@ export async function POST(
     const status = result.error === "not_authorized" ? 403 : 400;
     return NextResponse.json(result, { status });
   }
+  await persistStoreNow();
   return NextResponse.json(result);
 }

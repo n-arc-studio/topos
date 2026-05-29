@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { updateSpaceGravityConfig } from "@/lib/infra/store";
+import {
+  persistStoreNow,
+  refreshStoreFromPersistence,
+  updateSpaceGravityConfig,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 
 export async function POST(
@@ -22,6 +26,8 @@ export async function POST(
       ? (body as { gravityConfig: unknown }).gravityConfig
       : null;
 
+  await refreshStoreFromPersistence();
+
   const result = updateSpaceGravityConfig(
     spaceId,
     me.id,
@@ -33,6 +39,7 @@ export async function POST(
     const status = result.error === "forbidden" ? 403 : 400;
     return NextResponse.json(result, { status });
   }
+  await persistStoreNow();
   return NextResponse.json({
     spaceId: result.id,
     gravityConfig: result.gravityConfig ?? null,

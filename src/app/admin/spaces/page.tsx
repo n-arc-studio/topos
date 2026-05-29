@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getSpace, isAnyAdmin, isPlatformAdmin } from "@/lib/infra/store";
+import {
+  getSpace,
+  isAnyAdmin,
+  isPlatformAdmin,
+  refreshStoreFromPersistence,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 
 export default async function SpaceAdminIndexPage() {
   const me = await currentUser();
   if (!me) redirect("/login?next=/admin/spaces");
   if (!isAnyAdmin(me.id) && !isPlatformAdmin(me.id)) notFound();
+
+  await refreshStoreFromPersistence();
 
   const spaces = me.isAdminOf.map((sid) => getSpace(sid)).filter((s) => !!s);
 

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createSpace } from "@/lib/infra/store";
+import {
+  createSpace,
+  persistStoreNow,
+  refreshStoreFromPersistence,
+} from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 
 export async function POST(req: Request) {
@@ -17,6 +21,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
 
+  await refreshStoreFromPersistence();
+
   const result = createSpace({
     name,
     charter,
@@ -26,6 +32,8 @@ export async function POST(req: Request) {
     const status = result.error === "forbidden" ? 403 : 400;
     return NextResponse.json(result, { status });
   }
+
+  await persistStoreNow();
 
   return NextResponse.json(result, { status: 201 });
 }

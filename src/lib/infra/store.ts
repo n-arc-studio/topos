@@ -13,7 +13,7 @@ import {
   isWritable,
   MAX_VACATION_MS,
 } from "@/lib/domain/lifecycle";
-import { loadDB, scheduleSave } from "./persistence";
+import { loadDB, saveNow, scheduleSave } from "./persistence";
 
 // MVP用の単純なメモリストア。
 // 永続化は次フェーズで PostgreSQL に差し替える前提で、関数インターフェイスのみ公開する。
@@ -308,6 +308,17 @@ function touchLifecycle(space: Space): Space {
 
 function persist(): void {
   if (g.__toposDB) scheduleSave(g.__toposDB);
+}
+
+export async function refreshStoreFromPersistence(): Promise<void> {
+  const loaded = await loadDB(SCHEMA_VERSION);
+  if (!loaded) return;
+  g.__toposDB = loaded;
+}
+
+export async function persistStoreNow(): Promise<void> {
+  if (!g.__toposDB) return;
+  await saveNow(g.__toposDB);
 }
 
 function removePostArtifacts(db: DB, postIds: Set<string>) {
