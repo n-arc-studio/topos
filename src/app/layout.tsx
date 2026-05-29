@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { LogoutButton } from "@/components/LogoutButton";
 import { currentUser } from "@/lib/session/identity";
+import { isPlatformAdmin } from "@/lib/infra/store";
 import packageJson from "../../package.json";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -41,12 +42,20 @@ export default async function RootLayout({
               </Link>
               {me ? (
                 <>
-                  {me.isAdminOf.length > 0 && (
+                  {isPlatformAdmin(me.id) && (
                     <Link
                       href="/admin"
                       className="text-[var(--accent)] hover:underline"
                     >
-                      管理
+                      全体管理
+                    </Link>
+                  )}
+                  {me.isAdminOf.length > 0 && (
+                    <Link
+                      href="/admin/spaces"
+                      className="text-[var(--accent)] hover:underline"
+                    >
+                      場管理
                     </Link>
                   )}
                   <Link

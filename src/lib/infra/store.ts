@@ -56,6 +56,9 @@ const POST_MASS_GAIN = 1;
 // リアクション実行者には投稿者加算の一部のみ付与する。
 const REACTOR_BONUS_RATE = 0.25;
 
+// 初期管理や緊急時の権限操作を行えるプラットフォーム管理者。
+const PLATFORM_ADMIN_IDS = new Set(["u_admin"]);
+
 function applyMass(
   user: User | undefined,
   mode: "anonymous" | "named",
@@ -645,6 +648,10 @@ export function isAnyAdmin(userId: string): boolean {
   return !!u && u.isAdminOf.length > 0;
 }
 
+export function isPlatformAdmin(userId: string): boolean {
+  return PLATFORM_ADMIN_IDS.has(userId);
+}
+
 export function listReportedPosts(spaceIds?: string[]): Post[] {
   const db = getDB();
   return [...db.posts.values()]
@@ -694,6 +701,89 @@ export function updateSpaceGravityConfig(
     byUserId,
     kind: "define",
     payload: { gravityConfig: space.gravityConfig ?? null },
+    at: Date.now(),
+  });
+  persist();
+  return space;
+}
+
+// 場管理者の付与。既存管理者またはプラットフォーム管理者のみ実行可能。
+export function grantAdminRole(
+  spaceId: string,
+  byUserId: string,
+  targetUserId: string
+): Space | { error: string } {
+  const db = getDB();
+  const space = db.spaces.get(spaceId);
+  if (!space) return { error: "space_not_found" };
+
+  const actor = db.users.get(byUserId);
+  const canManageRole =
+    !!actor && (actor.isAdminOf.includes(spaceId) || isPlatformAdmin(byUserId));
+  if (!canManageRole) return { error: "forbidden" };
+
+  const target = db.users.get(targetUserId);
+  if (!target) return { error: "user_not_found" };
+
+  if (space.adminIds.includes(targetUserId)) {
+    return { error: "already_admin" };
+  }
+
+  space.adminIds.push(targetUserId);
+  if (!target.isAdminOf.includes(spaceId)) {
+    target.isAdminOf.push(spaceId);
+  }
+
+  space.lastAdminActionAt = Date.now();
+  touchLifecycle(space);
+  db.moderation.push({
+    id: `m_${Math.random().toString(36).slice(2, 10)}`,
+    spaceId,
+    byUserId,
+    kind: "grant_admin",
+    payload: { targetUserId },
+    at: Date.now(),
+  });
+  persist();
+  return space;
+}
+
+// 場管理者の剥奪。最後の管理者は剥奪不可。
+export function revokeAdminRole(
+  spaceId: string,
+  byUserId: string,
+  targetUserId: string
+): Space | { error: string } {
+  const db = getDB();
+  const space = db.spaces.get(spaceId);
+  if (!space) return { error: "space_not_found" };
+
+  const actor = db.users.get(byUserId);
+  const canManageRole =
+    !!actor && (actor.isAdminOf.includes(spaceId) || isPlatformAdmin(byUserId));
+  if (!canManageRole) return { error: "forbidden" };
+
+  if (!space.adminIds.includes(targetUserId)) {
+    return { error: "target_not_admin" };
+  }
+  if (space.adminIds.length <= 1) {
+    return { error: "last_admin_protected" };
+  }
+
+  space.adminIds = space.adminIds.filter((id) => id !== targetUserId);
+  const target = db.users.get(targetUserId);
+  if (target) {
+    target.isAdminOf = target.isAdminOf.filter((id) => id !== spaceId);
+  }
+
+  space.lastAdminActionAt = Date.now();
+  touchLifecycle(space);
+  db.moderation.push({
+    id: `m_${Math.random().toString(36).slice(2, 10)}`,
+    spaceId,
+    byUserId,
+    kind: "revoke_admin",
+    payload: { targetUserId },
     at: Date.now(),
   });
   persist();

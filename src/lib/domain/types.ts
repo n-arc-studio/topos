@@ -122,7 +122,16 @@ export interface ModerationAction {
   threadId?: ThreadId;
   postId?: PostId;
   byUserId: UserId;
-  kind: "lift" | "sink" | "slow" | "pin" | "define" | "unsink" | "unpin";
+  kind:
+    | "lift"
+    | "sink"
+    | "slow"
+    | "pin"
+    | "define"
+    | "unsink"
+    | "unpin"
+    | "grant_admin"
+    | "revoke_admin";
   payload?: Record<string, unknown>;
   at: number;
   note?: string;

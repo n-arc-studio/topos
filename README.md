@@ -22,10 +22,12 @@ Topos は、フォロワー数ではなく「場への寄与」で投稿の見�
 	- 時系列ツリー表示
 	- 沈殿層表示 (`surface`, `shallow`, `deep`, `abyss`)
 - 管理コンソール
+	- 全体管理 (`/admin`) と場管理 (`/admin/spaces/:spaceId`) の分離
 	- 通報投稿の確認
 	- 沈降投稿の確認
 	- モデレーション履歴の確認
 	- 場ごとの重力係数の上書き設定
+	- 場管理者権限の付与 / 剥奪
 - プロフィール編集
 
 ## アーキテクチャ概要
@@ -137,6 +139,8 @@ npm run test:coverage
 - `POST /api/posts/:postId/report`
 - `POST /api/posts/:postId/moderate`
 - `POST /api/spaces/:spaceId/config`
+- `POST /api/spaces/:spaceId/admin/grant`
+- `POST /api/spaces/:spaceId/admin/revoke`
 
 ## 未実装 / 進行中
 
