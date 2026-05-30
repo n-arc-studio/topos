@@ -71,7 +71,7 @@ export function PostComposer({
                   checked={mode === "anonymous"}
                   onChange={() => setMode("anonymous")}
                 />
-                匿名 (真空・Sink)
+                匿名
               </label>
               <label
                 className={`px-2 py-1 rounded border cursor-pointer ${
@@ -87,7 +87,7 @@ export function PostComposer({
                   checked={mode === "named"}
                   onChange={() => setMode("named")}
                 />
-                記名 (源泉・Source)
+                記名
               </label>
             </>
           )}
