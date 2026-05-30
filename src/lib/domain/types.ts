@@ -37,6 +37,22 @@ export interface User {
   anonymousMass: number; // 匿名で得た質量 (公的権威には変換しない)
 }
 
+// 分野別の信頼証明バッジ。
+// 序列ではなく、直近の寄与を示す「期限付きの証明」として扱う。
+export type BadgeKind = "quality_contributor" | "conversation_catalyst";
+
+export interface UserBadge {
+  id: string;
+  userId: UserId;
+  spaceId: SpaceId;
+  spaceName: string;
+  kind: BadgeKind;
+  label: string;
+  reason: string;
+  awardedAt: number;
+  expiresAt: number;
+}
+
 export type SpaceLifecycle = "active" | "dormant" | "succession" | "archived";
 
 export interface SpaceCandidate {

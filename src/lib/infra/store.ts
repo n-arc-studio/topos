@@ -1,10 +1,12 @@
 import type {
+  BadgeKind,
   GravityEvent,
   ModerationAction,
   Post,
   ReactionKind,
   Space,
   Thread,
+  UserBadge,
   User,
 } from "@/lib/domain/types";
 import type { SpaceGravityConfig } from "@/lib/domain/gravity-config";
@@ -72,6 +74,27 @@ const PLATFORM_ADMIN_IDS = new Set(
 );
 
 const EMPTY_POSTS: Post[] = [];
+const BADGE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+
+type BadgeSpec = {
+  kind: BadgeKind;
+  label: string;
+  minQualitySignals?: number;
+  minUniqueRepliers?: number;
+};
+
+const BADGE_SPECS: BadgeSpec[] = [
+  {
+    kind: "quality_contributor",
+    label: "文脈貢献バッジ",
+    minQualitySignals: 8,
+  },
+  {
+    kind: "conversation_catalyst",
+    label: "対話起動バッジ",
+    minUniqueRepliers: 4,
+  },
+];
 
 function ensureDerivedIndexes(db: DB): void {
   if (!db.postsByThreadId) db.postsByThreadId = new Map<string, Post[]>();
@@ -417,6 +440,90 @@ export function getUser(id: string): User | undefined {
 
 export function listUsers(): User[] {
   return [...getDB().users.values()];
+}
+
+export function listUserBadges(userId: string, now: number = Date.now()): UserBadge[] {
+  const db = getDB();
+  const windowStart = now - BADGE_WINDOW_MS;
+  const badges: UserBadge[] = [];
+
+  const posts = [...db.posts.values()].filter(
+    (p) => p.authorId === userId && p.createdAt >= windowStart
+  );
+  if (posts.length === 0) return badges;
+
+  const spaces = new Map<string, Space>();
+  for (const s of db.spaces.values()) spaces.set(s.id, s);
+
+  // 投稿単位の直返信者を先に作っておく。
+  const directRepliersByPost = new Map<string, Set<string>>();
+  for (const p of db.posts.values()) {
+    if (!p.replyTo) continue;
+    if (p.createdAt < windowStart) continue;
+    const set = directRepliersByPost.get(p.replyTo) ?? new Set<string>();
+    set.add(p.authorId);
+    directRepliersByPost.set(p.replyTo, set);
+  }
+
+  const postsBySpace = new Map<string, Post[]>();
+  for (const p of posts) {
+    const list = postsBySpace.get(p.spaceId);
+    if (list) list.push(p);
+    else postsBySpace.set(p.spaceId, [p]);
+  }
+
+  for (const [spaceId, spacePosts] of postsBySpace) {
+    const space = spaces.get(spaceId);
+    if (!space) continue;
+
+    const qualitySignals = spacePosts.reduce(
+      (sum, p) => sum + (p.reactions.useful ?? 0) + (p.reactions.agree ?? 0),
+      0
+    );
+
+    const repliers = new Set<string>();
+    for (const p of spacePosts) {
+      const set = directRepliersByPost.get(p.id);
+      if (!set) continue;
+      for (const uid of set) repliers.add(uid);
+    }
+    repliers.delete(userId);
+    const uniqueRepliers = repliers.size;
+
+    const awardedAt = Math.max(...spacePosts.map((p) => p.createdAt));
+    const expiresAt = awardedAt + BADGE_WINDOW_MS;
+    if (expiresAt <= now) continue;
+
+    for (const spec of BADGE_SPECS) {
+      const qualityOk =
+        spec.minQualitySignals === undefined || qualitySignals >= spec.minQualitySignals;
+      const replyOk =
+        spec.minUniqueRepliers === undefined || uniqueRepliers >= spec.minUniqueRepliers;
+      if (!qualityOk || !replyOk) continue;
+
+      let reason = "直近90日の寄与が基準を満たしました。";
+      if (spec.kind === "quality_contributor") {
+        reason = `直近90日で『参考になった』『なるほど』が ${qualitySignals} 件。`;
+      } else if (spec.kind === "conversation_catalyst") {
+        reason = `直近90日で ${uniqueRepliers} 人から返信を引き出しました。`;
+      }
+
+      badges.push({
+        id: `b_${userId}_${spaceId}_${spec.kind}`,
+        userId,
+        spaceId,
+        spaceName: space.name,
+        kind: spec.kind,
+        label: spec.label,
+        reason,
+        awardedAt,
+        expiresAt,
+      });
+    }
+  }
+
+  badges.sort((a, b) => b.awardedAt - a.awardedAt);
+  return badges;
 }
 
 export function ensureUser(id: string, displayName: string): User {
