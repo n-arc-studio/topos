@@ -27,6 +27,9 @@ export async function POST(
   if ("error" in result) {
     return NextResponse.json(result, { status: 400 });
   }
-  await persistStoreNow();
-  return NextResponse.json(result);
+  void persistStoreNow();
+  return NextResponse.json({
+    reportCount: result.reportCount,
+    isSunk: result.isSunk,
+  });
 }

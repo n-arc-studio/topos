@@ -34,6 +34,9 @@ export async function POST(
     const status = result.error === "not_authorized" ? 403 : 400;
     return NextResponse.json(result, { status });
   }
-  await persistStoreNow();
-  return NextResponse.json(result);
+  void persistStoreNow();
+  return NextResponse.json({
+    isPinned: result.isPinned,
+    isSunk: result.isSunk,
+  });
 }

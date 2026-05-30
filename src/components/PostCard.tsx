@@ -48,8 +48,10 @@ export function PostCard({
   isMyPost?: boolean;
   distortionLevel?: number;
 }) {
-  const [pending, start] = useTransition();
+  const [, start] = useTransition();
   const [pendingReaction, setPendingReaction] = useState<ReactionKind | null>(null);
+  const [pendingReport, setPendingReport] = useState(false);
+  const [pendingModeration, setPendingModeration] = useState(false);
   const [reactions, setReactions] = useState(post.reactions);
   const [reportCount, setReportCount] = useState(post.reportCount);
   const [isPinned, setIsPinned] = useState(post.isPinned);
@@ -100,45 +102,78 @@ export function PostCard({
 
   function report() {
     if (!confirm("この投稿を通報しますか?")) return;
+    if (pendingReport) return;
     setErr(null);
+    const prevReportCount = reportCount;
+    const prevIsSunk = isSunk;
+    setPendingReport(true);
+    setReportCount((c) => c + 1);
     start(async () => {
-      const res = await fetch(`/api/posts/${post.id}/report`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setErr(json.error ?? "失敗");
-        return;
-      }
-      if (typeof json.reportCount === "number") {
-        setReportCount(json.reportCount);
-      }
-      if (typeof json.isSunk === "boolean") {
-        setIsSunk(json.isSunk);
+      try {
+        const res = await fetch(`/api/posts/${post.id}/report`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setReportCount(prevReportCount);
+          setIsSunk(prevIsSunk);
+          setErr(json.error ?? "失敗");
+          return;
+        }
+        if (typeof json.reportCount === "number") {
+          setReportCount(json.reportCount);
+        }
+        if (typeof json.isSunk === "boolean") {
+          setIsSunk(json.isSunk);
+        }
+      } catch {
+        setReportCount(prevReportCount);
+        setIsSunk(prevIsSunk);
+        setErr("通信に失敗しました");
+      } finally {
+        setPendingReport(false);
       }
     });
   }
 
   function moderate(action: "sink" | "unsink" | "pin" | "unpin") {
+    if (pendingModeration) return;
     setErr(null);
+    const prevIsPinned = isPinned;
+    const prevIsSunk = isSunk;
+    setPendingModeration(true);
+    if (action === "pin") setIsPinned(true);
+    if (action === "unpin") setIsPinned(false);
+    if (action === "sink") setIsSunk(true);
+    if (action === "unsink") setIsSunk(false);
     start(async () => {
-      const res = await fetch(`/api/posts/${post.id}/moderate`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setErr(json.error ?? "失敗");
-        return;
-      }
-      if (typeof json.isPinned === "boolean") {
-        setIsPinned(json.isPinned);
-      }
-      if (typeof json.isSunk === "boolean") {
-        setIsSunk(json.isSunk);
+      try {
+        const res = await fetch(`/api/posts/${post.id}/moderate`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setIsPinned(prevIsPinned);
+          setIsSunk(prevIsSunk);
+          setErr(json.error ?? "失敗");
+          return;
+        }
+        if (typeof json.isPinned === "boolean") {
+          setIsPinned(json.isPinned);
+        }
+        if (typeof json.isSunk === "boolean") {
+          setIsSunk(json.isSunk);
+        }
+      } catch {
+        setIsPinned(prevIsPinned);
+        setIsSunk(prevIsSunk);
+        setErr("通信に失敗しました");
+      } finally {
+        setPendingModeration(false);
       }
     });
   }
@@ -255,7 +290,7 @@ export function PostCard({
         <button
           type="button"
           onClick={report}
-          disabled={pending}
+          disabled={pendingReport}
           className="text-xs px-2 py-0.5 rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition disabled:opacity-50"
           title="通報する"
         >
@@ -266,7 +301,7 @@ export function PostCard({
             <button
               type="button"
               onClick={() => moderate(isPinned ? "unpin" : "pin")}
-              disabled={pending}
+              disabled={pendingModeration}
               className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
             >
               {isPinned ? "ピン解除" : "ピン留め"}
@@ -274,7 +309,7 @@ export function PostCard({
             <button
               type="button"
               onClick={() => moderate(isSunk ? "unsink" : "sink")}
-              disabled={pending}
+              disabled={pendingModeration}
               className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition"
             >
               {isSunk ? "沈降解除" : "沈降"}
