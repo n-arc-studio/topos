@@ -31,6 +31,9 @@ type DB = {
   reportLog: Set<string>;
   // 重力スコアに影響したイベントの時系列ログ (GravityChart 用)
   gravityEvents: GravityEvent[];
+  // スレッドごとの投稿インデックス (永続化対象外)
+  postsByThreadId?: Map<string, Post[]>;
+  postsByThreadDirty?: boolean;
 };
 
 // スキーマ変更時はインクリメント。古い DB は破棄して再シードする。
@@ -67,6 +70,28 @@ const PLATFORM_ADMIN_IDS = new Set(
       .filter((id) => id.length > 0) ?? []),
   ]
 );
+
+const EMPTY_POSTS: Post[] = [];
+
+function ensureDerivedIndexes(db: DB): void {
+  if (!db.postsByThreadId) db.postsByThreadId = new Map<string, Post[]>();
+  if (typeof db.postsByThreadDirty !== "boolean") db.postsByThreadDirty = true;
+}
+
+function ensurePostsByThreadIndex(db: DB): Map<string, Post[]> {
+  ensureDerivedIndexes(db);
+  if (db.postsByThreadDirty) {
+    const next = new Map<string, Post[]>();
+    for (const p of db.posts.values()) {
+      const list = next.get(p.threadId);
+      if (list) list.push(p);
+      else next.set(p.threadId, [p]);
+    }
+    db.postsByThreadId = next;
+    db.postsByThreadDirty = false;
+  }
+  return db.postsByThreadId!;
+}
 
 function applyMass(
   user: User | undefined,
@@ -254,6 +279,7 @@ function getDB(): DB {
   if (!g.__toposDB || g.__toposDB.schemaVersion !== SCHEMA_VERSION) {
     throw new Error("[topos] db is not initialized");
   }
+  ensureDerivedIndexes(g.__toposDB);
   // 後方互換: 既存 DB に gravityEvents が無い場合 (古いプロセスの globalThis キャッシュ等)
   if (!g.__toposDB.gravityEvents) g.__toposDB.gravityEvents = [];
   // 後方互換: lifecycle フィールド未設定の Space を補完 (プロセス内マイグレ)
@@ -344,6 +370,7 @@ function removePostArtifacts(db: DB, postIds: Set<string>) {
 
   db.gravityEvents = db.gravityEvents.filter((e) => !postIds.has(e.postId));
   db.moderation = db.moderation.filter((m) => !m.postId || !postIds.has(m.postId));
+  db.postsByThreadDirty = true;
 }
 
 // ---- 公開API ----
@@ -370,7 +397,9 @@ export function getThread(id: string): Thread | undefined {
 }
 
 export function listPosts(threadId: string): Post[] {
-  return [...getDB().posts.values()].filter((p) => p.threadId === threadId);
+  const db = getDB();
+  const posts = ensurePostsByThreadIndex(db).get(threadId) ?? EMPTY_POSTS;
+  return [...posts];
 }
 
 export function getPost(id: string): Post | undefined {
@@ -471,9 +500,7 @@ export function deleteThread(
   if (!canManage) return { error: "forbidden" };
 
   const postIds = new Set(
-    [...db.posts.values()]
-      .filter((p) => p.threadId === threadId)
-      .map((p) => p.id)
+    (ensurePostsByThreadIndex(db).get(threadId) ?? EMPTY_POSTS).map((p) => p.id)
   );
   const deletedPostCount = postIds.size;
 
@@ -554,6 +581,13 @@ export function createPost(input: {
     ...newPostBase(),
   };
   db.posts.set(p.id, p);
+  if (db.postsByThreadDirty) {
+    // dirty 時は次回参照で再構築
+  } else {
+    const list = db.postsByThreadId!.get(thread.id);
+    if (list) list.push(p);
+    else db.postsByThreadId!.set(thread.id, [p]);
+  }
 
   // 投稿/返信そのものにも質量を付与する。
   applyMass(author, mode, POST_MASS_GAIN);
@@ -585,9 +619,7 @@ export function deletePost(
       isPlatformAdmin(byUserId));
   if (!canManage) return { error: "forbidden" };
 
-  const threadPosts = [...db.posts.values()].filter(
-    (p) => p.threadId === target.threadId
-  );
+  const threadPosts = ensurePostsByThreadIndex(db).get(target.threadId) ?? EMPTY_POSTS;
   const children: Record<string, string[]> = {};
   for (const p of threadPosts) {
     if (!p.replyTo) continue;
@@ -856,11 +888,12 @@ export function deleteSpace(
       .filter((t) => t.spaceId === spaceId)
       .map((t) => t.id)
   );
-  const postIds = new Set(
-    [...db.posts.values()]
-      .filter((p) => p.spaceId === spaceId)
-      .map((p) => p.id)
-  );
+  const postsByThread = ensurePostsByThreadIndex(db);
+  const postIds = new Set<string>();
+  for (const threadId of threadIds) {
+    const posts = postsByThread.get(threadId) ?? EMPTY_POSTS;
+    for (const p of posts) postIds.add(p.id);
+  }
   const deletedThreadCount = threadIds.size;
   const deletedPostCount = postIds.size;
 
@@ -894,7 +927,7 @@ export function listHotThreads(limit = 5, opts?: { includeArchived?: boolean }):
 }> {
   const db = getDB();
   const includeArchived = opts?.includeArchived ?? false;
-  const allPosts = [...db.posts.values()];
+  const postsByThread = ensurePostsByThreadIndex(db);
   const result: Array<{
     thread: Thread;
     space: Space;
@@ -906,7 +939,7 @@ export function listHotThreads(limit = 5, opts?: { includeArchived?: boolean }):
     if (!space) continue;
     touchLifecycle(space);
     if (!includeArchived && space.lifecycle === "archived") continue;
-    const posts = allPosts.filter((p) => p.threadId === thread.id);
+    const posts = postsByThread.get(thread.id) ?? EMPTY_POSTS;
     const lastPostAt = posts.reduce(
       (acc, p) => Math.max(acc, p.createdAt),
       thread.createdAt

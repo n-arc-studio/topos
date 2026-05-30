@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import type { Post, ReactionKind, GravityEvent } from "@/lib/domain/types";
 import { REACTION_LABEL } from "@/lib/domain/types";
 import { AdminDeleteButton } from "./AdminDeleteButton";
@@ -50,7 +49,6 @@ export function PostCard({
   distortionLevel?: number;
 }) {
   const [pending, start] = useTransition();
-  const router = useRouter();
   const [reactions, setReactions] = useState(post.reactions);
   const [reportCount, setReportCount] = useState(post.reportCount);
   const [isPinned, setIsPinned] = useState(post.isPinned);
@@ -72,8 +70,9 @@ export function PostCard({
         setErr(json.error ?? "失敗");
         return;
       }
-      setReactions(json.reactions);
-      router.refresh();
+      if (json.reactions) {
+        setReactions(json.reactions);
+      }
     });
   }
 
@@ -91,9 +90,12 @@ export function PostCard({
         setErr(json.error ?? "失敗");
         return;
       }
-      setReportCount(json.reportCount);
-      setIsSunk(json.isSunk);
-      router.refresh();
+      if (typeof json.reportCount === "number") {
+        setReportCount(json.reportCount);
+      }
+      if (typeof json.isSunk === "boolean") {
+        setIsSunk(json.isSunk);
+      }
     });
   }
 
@@ -110,9 +112,12 @@ export function PostCard({
         setErr(json.error ?? "失敗");
         return;
       }
-      setIsPinned(json.isPinned);
-      setIsSunk(json.isSunk);
-      router.refresh();
+      if (typeof json.isPinned === "boolean") {
+        setIsPinned(json.isPinned);
+      }
+      if (typeof json.isSunk === "boolean") {
+        setIsSunk(json.isSunk);
+      }
     });
   }
 
