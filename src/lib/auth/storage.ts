@@ -21,6 +21,7 @@ type AuthUserRow = {
 type MappingRow = {
   auth_user_id: string;
   domain_user_id: string;
+  display_name: string | null;
 };
 
 function normalizeEmail(email: string): string {
@@ -48,8 +49,13 @@ export async function ensureAuthTables(): Promise<void> {
         CREATE TABLE IF NOT EXISTS user_profile_mappings (
           auth_user_id text PRIMARY KEY REFERENCES auth_users(id) ON DELETE CASCADE,
           domain_user_id text NOT NULL UNIQUE,
+          display_name text,
           created_at timestamptz NOT NULL DEFAULT now()
         )
+      `;
+      await sql`
+        ALTER TABLE user_profile_mappings
+        ADD COLUMN IF NOT EXISTS display_name text
       `;
     })();
   }
@@ -117,8 +123,9 @@ export async function getOrCreateDomainUserIdForAuthUser(input: {
   email: string;
 }): Promise<{ domainUserId: string; displayName: string }> {
   await ensureAuthTables();
+  const fallbackName = defaultDisplayNameFromEmail(input.email);
   const rows = (await sql`
-    SELECT auth_user_id, domain_user_id
+    SELECT auth_user_id, domain_user_id, display_name
     FROM user_profile_mappings
     WHERE auth_user_id = ${input.authUserId}
     LIMIT 1
@@ -127,7 +134,7 @@ export async function getOrCreateDomainUserIdForAuthUser(input: {
   if (rows[0]) {
     return {
       domainUserId: rows[0].domain_user_id,
-      displayName: defaultDisplayNameFromEmail(input.email),
+      displayName: rows[0].display_name?.trim() || fallbackName,
     };
   }
 
@@ -138,12 +145,24 @@ export async function getOrCreateDomainUserIdForAuthUser(input: {
       : `u_${randomUUID().replace(/-/g, "").slice(0, 8)}`;
 
   await sql`
-    INSERT INTO user_profile_mappings (auth_user_id, domain_user_id)
-    VALUES (${input.authUserId}, ${domainUserId})
+    INSERT INTO user_profile_mappings (auth_user_id, domain_user_id, display_name)
+    VALUES (${input.authUserId}, ${domainUserId}, ${fallbackName})
   `;
 
   return {
     domainUserId,
-    displayName: defaultDisplayNameFromEmail(input.email),
+    displayName: fallbackName,
   };
+}
+
+export async function updateDomainUserDisplayName(
+  domainUserId: string,
+  displayName: string
+): Promise<void> {
+  await ensureAuthTables();
+  await sql`
+    UPDATE user_profile_mappings
+    SET display_name = ${displayName}
+    WHERE domain_user_id = ${domainUserId}
+  `;
 }

@@ -403,6 +403,11 @@ export function ensureUser(id: string, displayName: string): User {
     };
     db.users.set(id, u);
     persist();
+    return u;
+  }
+  if (u.displayName !== displayName) {
+    u.displayName = displayName;
+    persist();
   }
   return u;
 }

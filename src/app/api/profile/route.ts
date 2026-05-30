@@ -4,6 +4,7 @@ import {
   refreshStoreFromPersistence,
   updateUserDisplayName,
 } from "@/lib/infra/store";
+import { updateDomainUserDisplayName } from "@/lib/auth/storage";
 import { currentUser } from "@/lib/session/identity";
 
 export async function POST(req: Request) {
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
   if ("error" in result) {
     return NextResponse.json(result, { status: 400 });
   }
+  await updateDomainUserDisplayName(me.id, result.displayName);
   await persistStoreNow();
   return NextResponse.json(result);
 }
