@@ -3,7 +3,7 @@ import Link from "next/link";
 export const metadata = {
   title: "Topos とは — 思想と読み方",
   description:
-    "Topos の重力・沈殿層・質量という3つの概念と、ユーザーが目指すべき投稿の在り方をまとめたページ。",
+    "Topos の重力・沈殿層・質量という3つの概念と、現段階の仕様・運用方針をまとめたページ。",
 };
 
 export default function AboutPage() {
@@ -73,6 +73,32 @@ export default function AboutPage() {
             許容しつつ、なりすましのコストを上げています。
           </p>
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">現段階の仕様 (2026-05)</h2>
+        <p className="text-sm text-[var(--muted)] leading-relaxed">
+          現在は「比較で煽る」よりも「文脈に貢献する次の一手」を優先する段階です。
+          数値は競争のためではなく、場の状態を読むための補助として扱います。
+        </p>
+        <ul className="text-sm text-[var(--muted)] space-y-2 list-disc list-inside leading-relaxed">
+          <li>
+            スレッド上部に「あなたの重力歪み」を表示し、
+            自分の投稿がそのスレッド全体にどれだけ影響しているかを可視化します。
+          </li>
+          <li>
+            「質量ランキング」は常時表示せず、折りたたみで任意に確認する設計です。
+            前面化して競争を強めすぎないための措置です。
+          </li>
+          <li>
+            投稿フォームには、今日の書き込み件数とワンタップ下書きを表示します。
+            量の競争ではなく、書き出しの負荷を下げることが目的です。
+          </li>
+          <li>
+            仕様は観測しながら段階調整します。投稿品質の低下や連投偏重が見えた場合は、
+            すぐに表示強度や文言を引き下げます。
+          </li>
+        </ul>
       </section>
 
       <section className="space-y-3">
@@ -199,7 +225,8 @@ export default function AboutPage() {
             「場」「重力」「沈殿層」のふるまいは調整対象です。使い方や見え方が予告なく変わることがあります。
           </li>
           <li>
-            現在のユーザー識別は Cookie ベースの仮実装です。管理者権限も本格認証ではなく、運用上の設定で付与しています。
+            認証は Credentials ベースのログイン方式です。管理者権限は場ごとのロールで付与され、
+            全体管理者と場管理者は権限を分離して運用しています。
           </li>
           <li>
             通報・沈降・管理者操作は試験運用です。最終仕様ではないため、挙動や条件が変わる可能性があります。

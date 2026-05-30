@@ -386,6 +386,10 @@ export function getUser(id: string): User | undefined {
   return getDB().users.get(id);
 }
 
+export function listUsers(): User[] {
+  return [...getDB().users.values()];
+}
+
 export function ensureUser(id: string, displayName: string): User {
   const db = getDB();
   let u = db.users.get(id);

@@ -5,6 +5,7 @@ import {
   getThread,
   getUser,
   isAdmin,
+  listUsers,
   listPostEvents,
   listPosts,
   refreshStoreFromPersistence,
@@ -51,6 +52,7 @@ export default async function ThreadPage({
   const now = currentTimeMs();
   const allPosts = listPosts(currentThread.id);
   const stats = computeStats(allPosts);
+  const gravityByPostId: Record<string, number> = {};
 
   function ctxOf(p: Post): GravityContext {
     return {
@@ -64,8 +66,37 @@ export default async function ThreadPage({
     };
   }
   function scoreOf(p: Post): number {
-    return gravityScore(p, ctxOf(p));
+    const cached = gravityByPostId[p.id];
+    if (cached !== undefined) return cached;
+    const g = gravityScore(p, ctxOf(p));
+    gravityByPostId[p.id] = g;
+    return g;
   }
+
+  for (const p of allPosts) scoreOf(p);
+
+  const totalGravity = allPosts.reduce((sum, p) => sum + scoreOf(p), 0);
+  const maxGravity =
+    allPosts.length > 0 ? Math.max(...allPosts.map((p) => scoreOf(p))) : 0;
+  const myPosts = meId ? allPosts.filter((p) => p.authorId === meId) : [];
+  const myGravity = myPosts.reduce((sum, p) => sum + scoreOf(p), 0);
+  const myGravityShare =
+    totalGravity > 0 ? Math.min(1, myGravity / totalGravity) : 0;
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const todayStartMs = today.getTime();
+  const myTodayPosts = myPosts.filter((p) => p.createdAt >= todayStartMs).length;
+
+  const rankedUsers = listUsers()
+    .map((u) => ({
+      user: u,
+      totalMass: (u.publicMass ?? 0) + (u.anonymousMass ?? 0),
+    }))
+    .sort((a, b) => b.totalMass - a.totalMass);
+  const massTop = rankedUsers.slice(0, 8);
+  const meMassRank = meId
+    ? rankedUsers.findIndex((entry) => entry.user.id === meId) + 1
+    : 0;
 
   type Flat = { post: Post; depth: number };
   const flat: Flat[] = [];
@@ -110,8 +141,10 @@ export default async function ThreadPage({
     const displayName =
       f.post.identityMode === "named" && author ? author.displayName : "名無し";
     const ctx = ctxOf(f.post);
-    const g = gravityScore(f.post, ctx);
+    const g = scoreOf(f.post);
     const s = sedimentLevel(f.post, ctx);
+    const isMyPost = !!meId && f.post.authorId === meId;
+    const distortionLevel = maxGravity > 0 ? Math.min(1, g / maxGravity) : 0;
     return (
       <PostCard
         key={f.post.id}
@@ -128,6 +161,8 @@ export default async function ThreadPage({
         depth={layered ? 0 : f.depth}
         halfLifeHours={currentSpace.gravityConfig?.halfLifeHours}
         events={listPostEvents(f.post.id)}
+        isMyPost={isMyPost}
+        distortionLevel={distortionLevel}
       />
     );
   }
@@ -147,7 +182,17 @@ export default async function ThreadPage({
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
         {me ? (
           <>
-            <PostComposer threadId={currentThread.id} canBeAnonymous={!meIsAdmin} />
+            <PostComposer
+              threadId={currentThread.id}
+              canBeAnonymous={!meIsAdmin}
+              todayCount={myTodayPosts}
+              nudges={[
+                "前の投稿を読んで、いちばん刺さった1点だけ書くと: ",
+                "この話題を一歩前に進める質問: ",
+                "反対意見をあえて出すなら: ",
+                "ここまでの要点を3行でまとめると: ",
+              ]}
+            />
             {meIsAdmin && (
               <p className="text-xs text-[var(--warn)] mt-2">
                 あなたはこの場の管理者です。記名投稿のみ可能です(責任の可視化のため)。
@@ -157,6 +202,107 @@ export default async function ThreadPage({
         ) : (
           <AuthGate message="投稿や返信にはログインが必要です。" />
         )}
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2">
+        <article className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+          <h2 className="text-sm font-semibold">あなたの重力歪み</h2>
+          {me ? (
+            <div className="mt-2 space-y-2">
+              <p className="text-xs text-[var(--muted)]">
+                あなたの投稿がこのスレッド全体の重力に与えている影響
+              </p>
+              <div className="h-2 rounded-full bg-[var(--panel-2)] overflow-hidden border border-[var(--border)]">
+                <div
+                  className="h-full bg-[var(--accent)] transition-all duration-700"
+                  style={{ width: `${(myGravityShare * 100).toFixed(1)}%` }}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                <span>
+                  歪み率 <strong>{(myGravityShare * 100).toFixed(1)}%</strong>
+                </span>
+                <span className="text-[var(--muted)]">
+                  あなたの重力 {myGravity.toFixed(1)} / 全体 {totalGravity.toFixed(1)}
+                </span>
+                <span className="text-[var(--muted)]">投稿数 {myPosts.length}</span>
+              </div>
+              <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-xs text-[var(--muted)] space-y-2">
+                <p className="font-medium text-[var(--foreground)]">見方ガイド</p>
+                <div className="space-y-1">
+                  <p>
+                    <span className="font-medium text-[var(--foreground)]">定義:</span>{" "}
+                    歪み率 = このスレッド全体の重力のうち、あなたの投稿が占める割合
+                  </p>
+                  <p>
+                    <span className="font-medium text-[var(--foreground)]">目安:</span>
+                  </p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li>0-10%: 影響小</li>
+                    <li>10-30%: 存在感あり</li>
+                    <li>30%以上: 流れを主導</li>
+                  </ul>
+                  <p>
+                    <span className="font-medium text-[var(--foreground)]">増減要因:</span>
+                  </p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li>増える: 反応がつく、返信が連なる、参加者が広がる</li>
+                    <li>下がる: 時間経過、通報</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              ログインすると「自分がどれだけ場をゆがめているか」を可視化できます。
+            </p>
+          )}
+        </article>
+
+        <article className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+          <h2 className="text-sm font-semibold">質量ランキング</h2>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs text-[var(--muted)] hover:text-[var(--foreground)]">
+              ランキングを表示する
+            </summary>
+            <ol className="mt-2 space-y-1.5 text-sm">
+              {massTop.map((entry, index) => {
+                const isMe = !!meId && entry.user.id === meId;
+                return (
+                  <li
+                    key={entry.user.id}
+                    className={`flex items-center justify-between rounded px-2 py-1 border ${
+                      isMe
+                        ? "border-[var(--accent)]"
+                        : "border-transparent"
+                    }`}
+                    style={
+                      isMe
+                        ? {
+                            backgroundColor:
+                              "color-mix(in oklab, var(--panel) 75%, var(--accent) 10%)",
+                          }
+                        : undefined
+                    }
+                  >
+                    <span className="truncate">
+                      {index + 1}. {entry.user.displayName}
+                      {isMe ? " (あなた)" : ""}
+                    </span>
+                    <span className="text-xs text-[var(--muted)]">
+                      {entry.totalMass.toFixed(1)} mass
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+            {me && meMassRank > 8 && (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                あなたの順位: {meMassRank}位
+              </p>
+            )}
+          </details>
+        </article>
       </section>
 
       {/* 表示モード切替 */}

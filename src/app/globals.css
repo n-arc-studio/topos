@@ -36,3 +36,37 @@ body {
 a {
   color: inherit;
 }
+
+@keyframes gravity-warp {
+  0% {
+    transform: scale(0.96);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(0.98);
+    opacity: 0.5;
+  }
+}
+
+.gravity-distortion {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.gravity-distortion::before {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(47, 125, 121, 0.36), transparent 44%),
+    radial-gradient(circle at 70% 68%, rgba(20, 32, 55, 0.16), transparent 40%);
+  opacity: var(--distortion-opacity, 0.2);
+  animation: gravity-warp 3.4s ease-in-out infinite;
+}

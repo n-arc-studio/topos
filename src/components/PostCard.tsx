@@ -30,6 +30,8 @@ export function PostCard({
   depth = 0,
   halfLifeHours,
   events,
+  isMyPost = false,
+  distortionLevel = 0,
 }: {
   post: Post;
   displayName: string;
@@ -44,6 +46,8 @@ export function PostCard({
   depth?: number;
   halfLifeHours?: number;
   events?: GravityEvent[];
+  isMyPost?: boolean;
+  distortionLevel?: number;
 }) {
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -122,14 +126,22 @@ export function PostCard({
     : post.isAdminPost
       ? "color-mix(in oklab, var(--panel) 88%, var(--accent) 4%)"
       : "var(--panel)";
+  const distortionOpacity = 0.12 + Math.min(1, distortionLevel) * 0.34;
+  const distortionBlur = 8 + Math.min(1, distortionLevel) * 16;
 
   return (
     <article
-      className="rounded-md border border-[var(--border)] p-3 transition"
+      className={`rounded-md border border-[var(--border)] p-3 transition ${
+        isMyPost ? "gravity-distortion" : ""
+      }`}
       style={{
         backgroundColor: bg,
         opacity,
         marginLeft: depth > 0 ? Math.min(depth, 3) * 16 : 0,
+        boxShadow: isMyPost
+          ? `0 0 ${distortionBlur}px color-mix(in oklab, var(--accent) 35%, transparent)`
+          : undefined,
+        ["--distortion-opacity" as string]: String(distortionOpacity),
       }}
     >
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1 justify-between text-xs text-[var(--muted)] mb-1">
@@ -153,6 +165,11 @@ export function PostCard({
           <span className="opacity-60">
             · {post.identityMode === "named" ? "記名" : "匿名"}
           </span>
+          {isMyPost && (
+            <span className="text-[var(--accent)] font-medium">
+              · あなたの歪み {Math.round(distortionLevel * 100)}
+            </span>
+          )}
         </span>
         <span title={`gravity=${gravity.toFixed(2)} replies=${replyCount} 参加=${participants}`}>
           <button
