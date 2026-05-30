@@ -7,6 +7,7 @@ import {
   isAdmin,
   listPostEvents,
   listPosts,
+  refreshStoreFromPersistence,
 } from "@/lib/infra/store";
 import {
   computeStats,
@@ -31,6 +32,7 @@ export default async function ThreadPage({
   params: Promise<{ spaceId: string; threadId: string }>;
   searchParams: Promise<{ view?: string }>;
 }) {
+  await refreshStoreFromPersistence();
   const { spaceId, threadId } = await params;
   const { view } = await searchParams;
   const space = getSpace(spaceId);
