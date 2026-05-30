@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Post, ReactionKind, GravityEvent } from "@/lib/domain/types";
 import { REACTION_LABEL } from "@/lib/domain/types";
+import { AdminDeleteButton } from "./AdminDeleteButton";
 import { ReplyComposer } from "./ReplyComposer";
 import { GravityChart } from "./GravityChart";
 
@@ -24,6 +25,7 @@ export function PostCard({
   participants,
   meIsAdmin,
   meIsAnonymous,
+  canDelete,
   threadId,
   depth = 0,
   halfLifeHours,
@@ -37,6 +39,7 @@ export function PostCard({
   participants: number;
   meIsAdmin: boolean;
   meIsAnonymous: boolean;
+  canDelete: boolean;
   threadId: string;
   depth?: number;
   halfLifeHours?: number;
@@ -227,6 +230,18 @@ export function PostCard({
               {isSunk ? "沈降解除" : "沈降"}
             </button>
           </>
+        )}
+        {canDelete && (
+          <AdminDeleteButton
+            endpoint={`/api/posts/${post.id}`}
+            label="削除"
+            confirmMessage={
+              post.replyTo
+                ? "このコメントを削除します。返信がある場合は返信ツリーも削除されます。よろしいですか?"
+                : "この投稿を削除します。返信がある場合は返信ツリーも削除されます。よろしいですか?"
+            }
+            variant="default"
+          />
         )}
         {err && (
           <span className="text-xs text-[var(--warn)] ml-2">{err}</span>

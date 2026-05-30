@@ -24,6 +24,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { currentUser } from "@/lib/session/identity";
 import { PostComposer } from "@/components/PostComposer";
 import { PostCard } from "@/components/PostCard";
+import { currentTimeMs } from "@/lib/time";
 
 export default async function ThreadPage({
   params,
@@ -44,9 +45,10 @@ export default async function ThreadPage({
 
   const me = await currentUser();
   const meIsAdmin = me ? isAdmin(me.id, currentSpace.id) : false;
+  const meId = me?.id ?? null;
   const layered = view === "layers";
 
-  const now = Date.now();
+  const now = currentTimeMs();
   const allPosts = listPosts(currentThread.id);
   const stats = computeStats(allPosts);
 
@@ -121,6 +123,7 @@ export default async function ThreadPage({
         participants={stats.participantsByPost[f.post.id] ?? 0}
         meIsAdmin={meIsAdmin}
         meIsAnonymous={!meIsAdmin}
+        canDelete={!!me && (meIsAdmin || f.post.authorId === meId)}
         threadId={currentThread.id}
         depth={layered ? 0 : f.depth}
         halfLifeHours={currentSpace.gravityConfig?.halfLifeHours}

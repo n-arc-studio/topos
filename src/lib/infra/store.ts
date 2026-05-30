@@ -571,7 +571,9 @@ export function deletePost(
   const actor = db.users.get(byUserId);
   const canManage =
     !!actor &&
-    (actor.isAdminOf.includes(target.spaceId) || isPlatformAdmin(byUserId));
+    (target.authorId === byUserId ||
+      actor.isAdminOf.includes(target.spaceId) ||
+      isPlatformAdmin(byUserId));
   if (!canManage) return { error: "forbidden" };
 
   const threadPosts = [...db.posts.values()].filter(
