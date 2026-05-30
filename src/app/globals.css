@@ -133,11 +133,41 @@ a {
   animation: gravity-shear 2.8s ease-in-out infinite;
 }
 
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0) scale(1.02);
+  }
+}
+
+.home-hero {
+  background:
+    radial-gradient(circle at 8% 16%, rgba(47, 125, 121, 0.2), transparent 28%),
+    radial-gradient(circle at 84% 24%, rgba(102, 132, 174, 0.2), transparent 30%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(245, 244, 239, 0.86));
+}
+
+.home-hero-glow {
+  position: absolute;
+  inset: auto -10% -58% auto;
+  width: 360px;
+  height: 360px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(47, 125, 121, 0.24), transparent 65%);
+  filter: blur(2px);
+  animation: hero-float 5.5s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gravity-stream > .gravity-card,
   .gravity-stream > .gravity-card.gravity-card--distorted,
   .gravity-distortion::before,
-  .gravity-share-fill::after {
+  .gravity-share-fill::after,
+  .home-hero-glow {
     animation: none !important;
   }
 }

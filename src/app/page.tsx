@@ -1,35 +1,105 @@
 import Link from "next/link";
 import {
+  listPosts,
   listHotThreads,
   listSpaces,
   listThreads,
+  refreshStoreFromPersistence,
 } from "@/lib/infra/store";
 
-export default function Home() {
+function timeAgoJP(ts: number, now: number): string {
+  const diffMs = now - ts;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (diffMs < hour) return `${Math.max(1, Math.floor(diffMs / minute))}分前`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)}時間前`;
+  return `${Math.floor(diffMs / day)}日前`;
+}
+
+export default async function Home() {
+  await refreshStoreFromPersistence();
   const spaces = listSpaces();
   const hot = listHotThreads(5);
+  const now = Date.now();
+
+  const threadRows = spaces.flatMap((space) =>
+    listThreads(space.id).map((thread) => ({ space, thread }))
+  );
+  const totalThreads = threadRows.length;
+  const totalPosts = threadRows.reduce(
+    (sum, row) => sum + listPosts(row.thread.id).length,
+    0
+  );
+  const latestThreads = [...threadRows]
+    .sort((a, b) => b.thread.createdAt - a.thread.createdAt)
+    .slice(0, 4);
+
+  const avgPostsPerThread =
+    totalThreads > 0 ? (totalPosts / totalThreads).toFixed(1) : "0.0";
+
   return (
-    <div className="space-y-6">
-      <section>
-        <h1 className="text-2xl font-semibold">場の一覧</h1>
-        <p className="text-sm text-[var(--muted)] mt-1">
-          場は「文脈の宇宙」。それぞれの場には憲章と管理者がいる。
-        </p>
+    <div className="space-y-8">
+      <section className="home-hero rounded-2xl border border-[var(--border)] p-5 md:p-6 overflow-hidden relative">
+        <div className="home-hero-glow" aria-hidden="true" />
+        <div className="relative z-[1] space-y-5">
+          <div className="space-y-2">
+            <p className="text-xs tracking-[0.18em] uppercase text-[var(--muted)]">
+              Topos Signal Board
+            </p>
+            <h1 className="text-2xl md:text-3xl font-semibold leading-tight">
+              場の重力を、
+              <span className="text-[var(--accent)]">観測して参加する</span>
+            </h1>
+            <p className="text-sm md:text-base text-[var(--muted)] leading-relaxed max-w-2xl">
+              いま動いている話題から入って、重力の高い会話に接続する。
+              Toposは「反応の数」ではなく「文脈への寄与」で場を育てるSNSです。
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <MetricCard label="アクティブな場" value={`${spaces.length}`} />
+            <MetricCard label="スレッド数" value={`${totalThreads}`} />
+            <MetricCard label="投稿総数" value={`${totalPosts}`} />
+            <MetricCard label="平均投稿密度" value={`${avgPostsPerThread}/スレ`} />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={hot[0] ? `/spaces/${hot[0].space.id}/threads/${hot[0].thread.id}` : "/about"}
+              className="px-3 py-2 text-sm rounded-md bg-[var(--accent)] text-black font-medium hover:opacity-90 transition"
+            >
+              いま熱いスレに入る
+            </Link>
+            <Link
+              href="/about"
+              className="px-3 py-2 text-sm rounded-md border border-[var(--border)] bg-[var(--panel)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
+            >
+              思想と使い方を読む
+            </Link>
+          </div>
+        </div>
       </section>
 
       {hot.length > 0 && (
         <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <h2 className="text-sm font-medium text-[var(--muted)] mb-3">
-            いま動きのある話題
-          </h2>
-          <ul className="space-y-2">
-            {hot.map((h) => (
-              <li key={h.thread.id}>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h2 className="text-sm font-medium text-[var(--muted)]">
+              いま動きのある話題
+            </h2>
+            <span className="text-xs text-[var(--muted)]">HOT {hot.length}</span>
+          </div>
+          <ul className="space-y-2 min-w-0">
+            {hot.map((h, idx) => (
+              <li key={h.thread.id} className="min-w-0">
                 <Link
                   href={`/spaces/${h.space.id}/threads/${h.thread.id}`}
-                  className="flex items-baseline justify-between gap-3 text-sm hover:text-[var(--accent)] transition"
+                  className="group flex min-w-0 items-baseline justify-between gap-3 rounded-md border border-transparent px-2 py-1.5 text-sm hover:border-[var(--border)] hover:bg-[var(--panel-2)] hover:text-[var(--accent)] transition"
                 >
-                  <span className="truncate">
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="text-[var(--muted)] mr-2">
+                      {idx + 1}.
+                    </span>
                     <span className="text-[var(--muted)] mr-2">
                       {h.space.name}
                     </span>
@@ -44,9 +114,48 @@ export default function Home() {
           </ul>
         </section>
       )}
-      <ul className="space-y-3">
+
+      {latestThreads.length > 0 && (
+        <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+          <h2 className="text-sm font-medium text-[var(--muted)] mb-3">
+            新着スレッド
+          </h2>
+          <ul className="grid gap-2 min-w-0">
+            {latestThreads.map(({ space, thread }) => (
+              <li key={thread.id} className="min-w-0">
+                <Link
+                  href={`/spaces/${space.id}/threads/${thread.id}`}
+                  className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 hover:border-[var(--accent)] transition"
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="text-xs text-[var(--muted)] mr-2">{space.name}</span>
+                    <span className="text-sm">{thread.title}</span>
+                  </span>
+                  <span className="text-xs text-[var(--muted)] whitespace-nowrap">
+                    {timeAgoJP(thread.createdAt, now)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold">場の一覧</h2>
+          <p className="text-xs text-[var(--muted)]">
+            場は「文脈の宇宙」。それぞれの場には憲章と管理者がいる。
+          </p>
+        </div>
+
+        <ul className="space-y-3">
         {spaces.map((s) => {
           const threads = listThreads(s.id);
+          const postCount = threads.reduce(
+            (sum, thread) => sum + listPosts(thread.id).length,
+            0
+          );
           return (
             <li
               key={s.id}
@@ -55,9 +164,11 @@ export default function Home() {
               <Link href={`/spaces/${s.id}`} className="block">
                 <div className="flex items-baseline justify-between gap-3">
                   <h2 className="font-medium">{s.name}</h2>
-                  <span className="text-xs text-[var(--muted)]">
-                    {threads.length} スレ
-                  </span>
+                  <div className="text-xs text-[var(--muted)] flex items-center gap-2">
+                    <span>{threads.length} スレ</span>
+                    <span>•</span>
+                    <span>{postCount} 投稿</span>
+                  </div>
                 </div>
                 <p className="text-sm text-[var(--muted)] mt-2 leading-relaxed">
                   {s.charter}
@@ -66,7 +177,17 @@ export default function Home() {
             </li>
           );
         })}
-      </ul>
+        </ul>
+      </section>
+    </div>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2">
+      <p className="text-[11px] text-[var(--muted)] leading-none">{label}</p>
+      <p className="mt-1 text-lg font-semibold leading-none">{value}</p>
     </div>
   );
 }
