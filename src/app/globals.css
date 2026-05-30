@@ -52,6 +52,96 @@ a {
   }
 }
 
+@keyframes gravity-fall-in {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    filter: blur(4px);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.004);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes gravity-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(47, 125, 121, 0);
+  }
+  45% {
+    box-shadow: 0 0 30px rgba(47, 125, 121, 0.18);
+  }
+}
+
+@keyframes gravity-shear {
+  0% {
+    transform: translateX(-32%);
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateX(124%);
+    opacity: 0;
+  }
+}
+
+.gravity-stream > .gravity-card {
+  animation: gravity-fall-in var(--gravity-duration, 620ms)
+    cubic-bezier(0.18, 0.78, 0.22, 1) both;
+  animation-delay: var(--gravity-delay, 0ms);
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  will-change: transform, opacity;
+}
+
+.gravity-stream > .gravity-card:hover {
+  transform: translateY(-1px);
+}
+
+.gravity-stream > .gravity-card.gravity-card--distorted {
+  animation:
+    gravity-fall-in var(--gravity-duration, 620ms)
+      cubic-bezier(0.18, 0.78, 0.22, 1) both,
+    gravity-pulse 2.6s ease-in-out infinite;
+  animation-delay: var(--gravity-delay, 0ms), calc(var(--gravity-delay, 0ms) + 220ms);
+}
+
+.gravity-share-fill {
+  position: relative;
+  overflow: hidden;
+}
+
+.gravity-share-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 42%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.42),
+    rgba(255, 255, 255, 0)
+  );
+  animation: gravity-shear 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gravity-stream > .gravity-card,
+  .gravity-stream > .gravity-card.gravity-card--distorted,
+  .gravity-distortion::before,
+  .gravity-share-fill::after {
+    animation: none !important;
+  }
+}
+
 .gravity-distortion {
   position: relative;
   isolation: isolate;

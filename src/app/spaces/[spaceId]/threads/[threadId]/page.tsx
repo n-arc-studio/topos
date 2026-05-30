@@ -214,7 +214,7 @@ export default async function ThreadPage({
               </p>
               <div className="h-2 rounded-full bg-[var(--panel-2)] overflow-hidden border border-[var(--border)]">
                 <div
-                  className="h-full bg-[var(--accent)] transition-all duration-700"
+                  className="gravity-share-fill h-full bg-[var(--accent)] transition-all duration-700"
                   style={{ width: `${(myGravityShare * 100).toFixed(1)}%` }}
                 />
               </div>
@@ -353,13 +353,13 @@ export default async function ThreadPage({
                     {group.length} 件
                   </span>
                 </header>
-                <div className="space-y-2">{group.map(renderCard)}</div>
+                <div className="gravity-stream space-y-2">{group.map(renderCard)}</div>
               </div>
             );
           })}
         </section>
       ) : (
-        <section className="space-y-3">{flat.map(renderCard)}</section>
+        <section className="gravity-stream space-y-3">{flat.map(renderCard)}</section>
       )}
     </div>
   );

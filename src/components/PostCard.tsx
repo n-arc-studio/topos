@@ -126,13 +126,16 @@ export function PostCard({
     : post.isAdminPost
       ? "color-mix(in oklab, var(--panel) 88%, var(--accent) 4%)"
       : "var(--panel)";
-  const distortionOpacity = 0.12 + Math.min(1, distortionLevel) * 0.34;
-  const distortionBlur = 8 + Math.min(1, distortionLevel) * 16;
+  const distortionNormalized = Math.min(1, distortionLevel);
+  const distortionOpacity = 0.12 + distortionNormalized * 0.34;
+  const distortionBlur = 8 + distortionNormalized * 16;
+  const gravityDelayMs = Math.min(depth, 4) * 70;
+  const gravityDurationMs = 520 + distortionNormalized * 260;
 
   return (
     <article
-      className={`rounded-md border border-[var(--border)] p-3 transition ${
-        isMyPost ? "gravity-distortion" : ""
+      className={`gravity-card rounded-md border border-[var(--border)] p-3 transition ${
+        isMyPost ? "gravity-distortion gravity-card--distorted" : ""
       }`}
       style={{
         backgroundColor: bg,
@@ -142,6 +145,9 @@ export function PostCard({
           ? `0 0 ${distortionBlur}px color-mix(in oklab, var(--accent) 35%, transparent)`
           : undefined,
         ["--distortion-opacity" as string]: String(distortionOpacity),
+        ["--distortion-level" as string]: String(distortionNormalized),
+        ["--gravity-delay" as string]: `${gravityDelayMs}ms`,
+        ["--gravity-duration" as string]: `${gravityDurationMs}ms`,
       }}
     >
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1 justify-between text-xs text-[var(--muted)] mb-1">
