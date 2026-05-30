@@ -49,6 +49,7 @@ export function PostCard({
   distortionLevel?: number;
 }) {
   const [pending, start] = useTransition();
+  const [pendingReaction, setPendingReaction] = useState<ReactionKind | null>(null);
   const [reactions, setReactions] = useState(post.reactions);
   const [reportCount, setReportCount] = useState(post.reportCount);
   const [isPinned, setIsPinned] = useState(post.isPinned);
@@ -58,20 +59,41 @@ export function PostCard({
   const [chartOpen, setChartOpen] = useState(false);
 
   function react(kind: ReactionKind) {
+    if (pendingReaction) return;
     setErr(null);
+    setPendingReaction(kind);
+    setReactions((prev) => ({
+      ...prev,
+      [kind]: (prev[kind] ?? 0) + 1,
+    }));
     start(async () => {
-      const res = await fetch(`/api/posts/${post.id}/reactions`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ kind }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setErr(json.error ?? "失敗");
-        return;
-      }
-      if (json.reactions) {
-        setReactions(json.reactions);
+      try {
+        const res = await fetch(`/api/posts/${post.id}/reactions`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ kind }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          // 楽観更新を巻き戻す。
+          setReactions((prev) => ({
+            ...prev,
+            [kind]: Math.max(0, (prev[kind] ?? 1) - 1),
+          }));
+          setErr(json.error ?? "失敗");
+          return;
+        }
+        if (json.reactions) {
+          setReactions(json.reactions);
+        }
+      } catch {
+        setReactions((prev) => ({
+          ...prev,
+          [kind]: Math.max(0, (prev[kind] ?? 1) - 1),
+        }));
+        setErr("通信に失敗しました");
+      } finally {
+        setPendingReaction(null);
       }
     });
   }
@@ -214,7 +236,7 @@ export function PostCard({
           <button
             key={k}
             type="button"
-            disabled={pending}
+            disabled={!!pendingReaction}
             onClick={() => react(k)}
             className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition disabled:opacity-50"
             title={REACTION_LABEL[k]}
