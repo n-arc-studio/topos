@@ -50,8 +50,8 @@ export function ReplyComposer({
             return;
           }
           setBody("");
-          onDone?.();
           router.refresh();
+          onDone?.();
         });
       }}
       className="space-y-2 mt-2"
