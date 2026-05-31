@@ -52,6 +52,8 @@ export function MobileComposeCta({ isLoggedIn }: { isLoggedIn: boolean }) {
       ? `${pathname}#reply-latest`
       : composeHref;
 
+  if (keyboardOffset > 80) return null;
+
   const bottomPx = 80 + keyboardOffset;
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 const MAX_BODY_LENGTH = 2000;
@@ -49,8 +49,20 @@ export function PostComposer({
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const router = useRouter();
   const overLimit = body.length > MAX_BODY_LENGTH;
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const isKeyboardOpen = keyboardInset > 80;
+
+  function resizeTextarea() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const nextHeight = Math.min(320, Math.max(120, el.scrollHeight));
+    el.style.height = `${nextHeight}px`;
+  }
 
   useEffect(() => {
     try {
@@ -76,12 +88,35 @@ export function PostComposer({
     }
   }, [body, threadId]);
 
+  useEffect(() => {
+    resizeTextarea();
+  }, [body]);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const update = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardInset(inset);
+    };
+
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
   function applyTemplate(template: string) {
     setBody((prev) => (prev.trim() ? `${prev}\n\n${template}` : template));
   }
 
   return (
     <form
+      ref={formRef}
       onSubmit={(e) => {
         e.preventDefault();
         setErr(null);
@@ -123,7 +158,11 @@ export function PostComposer({
           } catch {
             // no-op
           }
+          const restoreY = window.scrollY;
           router.refresh();
+          window.requestAnimationFrame(() => {
+            window.scrollTo({ top: restoreY });
+          });
         });
       }}
       className="space-y-3"
@@ -136,11 +175,19 @@ export function PostComposer({
       )}
       <textarea
         id="thread-post-composer"
+        ref={textareaRef}
         value={body}
         onChange={(e) => setBody(e.target.value)}
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            e.preventDefault();
+            formRef.current?.requestSubmit();
+          }
+        }}
         placeholder="内容を投稿する。必要なら提案や修正依頼として書く。"
         rows={4}
-        className="w-full bg-[var(--panel-2)] border border-[var(--border)] rounded px-3 py-2.5 text-[15px] leading-[1.8] outline-none focus:border-[var(--accent)] resize-y"
+        enterKeyHint="send"
+        className="w-full overflow-hidden bg-[var(--panel-2)] border border-[var(--border)] rounded px-3 py-2.5 text-[15px] leading-[1.8] outline-none focus:border-[var(--accent)] resize-none"
       />
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {POST_TEMPLATES.map((template) => (
@@ -216,6 +263,26 @@ export function PostComposer({
           投下する
         </button>
       </div>
+      {isKeyboardOpen && (
+        <div
+          className="fixed inset-x-0 z-30 border-t border-[var(--border)] bg-[var(--panel-2)]/95 px-3 py-2 backdrop-blur sm:hidden"
+          style={{ bottom: `calc(env(safe-area-inset-bottom) + ${keyboardInset}px)` }}
+        >
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+            <span className="text-xs text-[var(--muted)]">
+              {body.length}/{MAX_BODY_LENGTH}
+            </span>
+            <button
+              type="button"
+              onClick={() => formRef.current?.requestSubmit()}
+              disabled={pending || !body.trim() || overLimit}
+              className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
+            >
+              投下する
+            </button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
