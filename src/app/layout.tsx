@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { LogoutButton } from "@/components/LogoutButton";
+import { PwaRegister } from "@/components/PwaRegister";
 import { currentUser } from "@/lib/session/identity";
 import { isPlatformAdmin } from "@/lib/infra/store";
 import packageJson from "../../package.json";
@@ -14,6 +15,19 @@ export const metadata: Metadata = {
   title: "Topos — 場の重力をつくるSNS",
   description:
     "フォロワー数ではなく、場への寄与で評価される実験的SNS。匿名と記名を切り替え、澱む発言は重力で沈み、流れを作る発言が浮かぶ。",
+  applicationName: "Topos",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Topos",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2f7d79",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({
@@ -98,6 +112,7 @@ export default async function RootLayout({
             <span className="font-mono opacity-80">v{appVersion}</span>
           </div>
         </footer>
+        <PwaRegister />
       </body>
     </html>
   );
