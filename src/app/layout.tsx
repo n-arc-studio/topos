@@ -7,6 +7,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { PwaRegister } from "@/components/PwaRegister";
 import { currentUser } from "@/lib/session/identity";
 import { isPlatformAdmin } from "@/lib/infra/store";
+import { buildAdminNavLinks } from "@/lib/ui/admin-nav";
 import packageJson from "../../package.json";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -36,6 +37,12 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const me = await currentUser();
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? packageJson.version;
+  const adminLinks = me
+    ? buildAdminNavLinks({
+        isPlatformAdmin: isPlatformAdmin(me.id),
+        hasSpaceAdminRole: me.isAdminOf.length > 0,
+      })
+    : [];
 
   return (
     <html
@@ -57,22 +64,15 @@ export default async function RootLayout({
               </Link>
               {me ? (
                 <>
-                  {isPlatformAdmin(me.id) && (
+                  {adminLinks.map((link) => (
                     <Link
-                      href="/admin"
+                      key={link.key}
+                      href={link.href}
                       className="text-[var(--accent)] hover:underline"
                     >
-                      全体管理
+                      {link.label}
                     </Link>
-                  )}
-                  {me.isAdminOf.length > 0 && (
-                    <Link
-                      href="/admin/spaces"
-                      className="text-[var(--accent)] hover:underline"
-                    >
-                      場管理
-                    </Link>
-                  )}
+                  ))}
                   <Link
                     href="/profile"
                     className="hover:text-[var(--accent)] transition"
@@ -109,13 +109,18 @@ export default async function RootLayout({
               </Link>
               {me ? (
                 <div className="flex min-w-0 items-center gap-3">
-                  {(isPlatformAdmin(me.id) || me.isAdminOf.length > 0) && (
-                    <Link
-                      href={isPlatformAdmin(me.id) ? "/admin" : "/admin/spaces"}
-                      className="text-[var(--accent)] hover:underline"
-                    >
-                      管理
-                    </Link>
+                  {adminLinks.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      {adminLinks.map((link) => (
+                        <Link
+                          key={`m-${link.key}`}
+                          href={link.href}
+                          className="text-[var(--accent)] hover:underline"
+                        >
+                          {link.label}
+                        </Link>
+                      ))}
+                    </div>
                   )}
                   <div className="min-w-0 text-right">
                     <Link

@@ -149,7 +149,7 @@ export default async function ProfilePage() {
           <span className="text-xs text-[var(--muted)]">アカウント操作</span>
           <LogoutButton
             className="inline-flex items-center rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition"
-            label="ログアウト"
+            label="アカウントをログアウト"
           />
         </div>
       </section>
