@@ -211,7 +211,7 @@ export default async function ThreadPage({
         <h1 className="text-xl font-semibold mt-2">{currentThread.title}</h1>
       </section>
 
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+      <section id="composer" className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
         {me ? (
           <>
             <PostComposer

@@ -83,7 +83,7 @@ export default async function Home() {
       </section>
 
       {hot.length > 0 && (
-        <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+        <section id="hot-topics" className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
           <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-sm font-medium text-[var(--muted)]">
               いま動きのある話題
@@ -142,7 +142,7 @@ export default async function Home() {
         </section>
       )}
 
-      <section className="space-y-3">
+      <section id="spaces" className="space-y-3">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-semibold">場の一覧</h2>
           <p className="text-xs text-[var(--muted)]">
