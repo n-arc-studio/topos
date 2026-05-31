@@ -4,8 +4,10 @@ import {
   listHotThreads,
   listSpaces,
   listThreads,
+  listParticipatingThreads,
   refreshStoreFromPersistence,
 } from "@/lib/infra/store";
+import { currentUser } from "@/lib/session/identity";
 import { currentTimeMs } from "@/lib/time";
 
 function timeAgoJP(ts: number, now: number): string {
@@ -20,9 +22,11 @@ function timeAgoJP(ts: number, now: number): string {
 
 export default async function Home() {
   await refreshStoreFromPersistence();
+  const me = await currentUser();
   const spaces = listSpaces();
   const hot = listHotThreads(5);
   const now = currentTimeMs();
+  const myThreads = me ? listParticipatingThreads(me.id, 6) : [];
 
   const threadRows = spaces.flatMap((space) =>
     listThreads(space.id).map((thread) => ({ space, thread }))
@@ -81,6 +85,76 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {me && (
+        <section
+          id="your-threads"
+          className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4"
+        >
+          <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-sm font-medium text-[var(--muted)]">
+              あなたが参加した議論の続き
+            </h2>
+            <span className="text-xs text-[var(--muted)]">
+              文脈の更新を追う
+            </span>
+          </div>
+
+          {myThreads.length === 0 ? (
+            <p className="text-sm text-[var(--muted)] leading-relaxed">
+              まだ参加した議論がありません。気になる場のスレッドに一言残すと、
+              その後の動きがここに流れてきます。
+            </p>
+          ) : (
+            <ul className="space-y-2 min-w-0">
+              {myThreads.map((row) => (
+                <li key={row.thread.id} className="min-w-0">
+                  <Link
+                    href={`/spaces/${row.space.id}/threads/${row.thread.id}`}
+                    className="group block rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 hover:border-[var(--accent)] transition"
+                  >
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                      <span className="min-w-0 flex-1 truncate text-sm">
+                        <span className="text-xs text-[var(--muted)] mr-2">
+                          {row.space.name}
+                        </span>
+                        {row.thread.title}
+                      </span>
+                      <span className="text-xs text-[var(--muted)] whitespace-nowrap">
+                        {timeAgoJP(row.lastPostAt, now)}
+                      </span>
+                    </div>
+
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      {row.newSinceMine > 0 ? (
+                        <span className="text-[var(--accent)]">
+                          あなたの投稿後に {row.newSinceMine} 件
+                          {row.newReplierCount > 1
+                            ? `・${row.newReplierCount} 人`
+                            : ""}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--muted)]">新しい動きなし</span>
+                      )}
+                      {row.isReemergence && (
+                        <span className="rounded-full border border-[var(--accent)] px-1.5 py-0.5 text-[10px] text-[var(--accent)]">
+                          再点火
+                        </span>
+                      )}
+                    </div>
+
+                    {row.preview && (
+                      <p className="mt-1 truncate text-xs text-[var(--muted)]">
+                        最新: {row.lastPostBy}「{row.preview}」
+                      </p>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       {hot.length > 0 && (
         <section id="hot-topics" className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">

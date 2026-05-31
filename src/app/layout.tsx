@@ -2,12 +2,11 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { MobileComposeCta } from "@/components/MobileComposeCta";
-import { LogoutButton } from "@/components/LogoutButton";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { PwaRegister } from "@/components/PwaRegister";
 import { currentUser } from "@/lib/session/identity";
 import { isPlatformAdmin } from "@/lib/infra/store";
+import { buildAdminNavLinks } from "@/lib/ui/admin-nav";
 import packageJson from "../../package.json";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -37,6 +36,12 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const me = await currentUser();
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? packageJson.version;
+  const adminLinks = me
+    ? buildAdminNavLinks({
+        isPlatformAdmin: isPlatformAdmin(me.id),
+        hasSpaceAdminRole: me.isAdminOf.length > 0,
+      })
+    : [];
 
   return (
     <html
@@ -58,22 +63,15 @@ export default async function RootLayout({
               </Link>
               {me ? (
                 <>
-                  {isPlatformAdmin(me.id) && (
+                  {adminLinks.map((link) => (
                     <Link
-                      href="/admin"
+                      key={link.key}
+                      href={link.href}
                       className="text-[var(--accent)] hover:underline"
                     >
-                      全体管理
+                      {link.label}
                     </Link>
-                  )}
-                  {me.isAdminOf.length > 0 && (
-                    <Link
-                      href="/admin/spaces"
-                      className="text-[var(--accent)] hover:underline"
-                    >
-                      場管理
-                    </Link>
-                  )}
+                  ))}
                   <Link
                     href="/profile"
                     className="hover:text-[var(--accent)] transition"
@@ -86,7 +84,6 @@ export default async function RootLayout({
                     匿=
                     <span className="text-[var(--foreground)]">{me.anonymousMass}</span>
                   </span>
-                  <LogoutButton />
                 </>
               ) : (
                 <>
@@ -110,7 +107,32 @@ export default async function RootLayout({
                 思想
               </Link>
               {me ? (
-                <span className="truncate max-w-[64vw]">{me.displayName}</span>
+                <div className="flex min-w-0 items-center gap-3">
+                  {adminLinks.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      {adminLinks.map((link) => (
+                        <Link
+                          key={`m-${link.key}`}
+                          href={link.href}
+                          className="text-[var(--accent)] hover:underline"
+                        >
+                          {link.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  <div className="min-w-0 text-right">
+                    <Link
+                      href="/profile"
+                      className="block truncate max-w-[36vw] hover:text-[var(--accent)] transition"
+                    >
+                      {me.displayName}
+                    </Link>
+                    <span className="block text-[10px] opacity-70">
+                      公={me.publicMass} 匿={me.anonymousMass}
+                    </span>
+                  </div>
+                </div>
               ) : (
                 <div className="flex items-center gap-3">
                   <Link href="/login" className="hover:text-[var(--accent)] transition">
@@ -131,7 +153,6 @@ export default async function RootLayout({
             <span className="font-mono opacity-80">v{appVersion}</span>
           </div>
         </footer>
-        <MobileComposeCta isLoggedIn={!!me} />
         <MobileBottomNav />
         <PwaRegister />
       </body>

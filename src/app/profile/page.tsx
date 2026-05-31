@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/session/identity";
 import { ProfileForm } from "@/components/ProfileForm";
+import { LogoutButton } from "@/components/LogoutButton";
 import {
   listUserBadges,
   listPosts,
@@ -144,6 +145,13 @@ export default async function ProfilePage() {
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
         <ProfileForm initialName={me.displayName} />
+        <div className="mt-4 border-t border-[var(--border)] pt-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs text-[var(--muted)]">アカウント操作</span>
+          <LogoutButton
+            className="inline-flex items-center rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition"
+            label="アカウントをログアウト"
+          />
+        </div>
       </section>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-sm space-y-2">

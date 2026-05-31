@@ -1260,6 +1260,113 @@ export function listHotThreads(limit = 5, opts?: { includeArchived?: boolean }):
   return result.slice(0, limit);
 }
 
+// ホーム用: ログインユーザーが「参加した議論の続き」を読むためのフィード。
+//
+// 思想上の注意:
+//  - 反応数ランキングではなく「自分が関与した文脈の更新」を主軸にする。
+//  - 単なる新着だけでなく「沈みかけた議論の再点火 (再発見)」も同列に扱う。
+//  - フォロワー型の人物軸ではなく、あくまでスレッド (場の文脈) 軸で並べる。
+const REEMERGENCE_GAP_MS = 48 * 60 * 60 * 1000;
+
+export function listParticipatingThreads(
+  userId: string,
+  limit = 6
+): Array<{
+  thread: Thread;
+  space: Space;
+  totalPosts: number;
+  myLastPostAt: number;
+  lastPostAt: number;
+  lastPostBy: string;
+  newSinceMine: number;
+  newReplierCount: number;
+  isReemergence: boolean;
+  preview: string;
+}> {
+  const db = getDB();
+  const postsByThread = ensurePostsByThreadIndex(db);
+  const now = Date.now();
+  const rows: Array<{
+    thread: Thread;
+    space: Space;
+    totalPosts: number;
+    myLastPostAt: number;
+    lastPostAt: number;
+    lastPostBy: string;
+    newSinceMine: number;
+    newReplierCount: number;
+    isReemergence: boolean;
+    preview: string;
+  }> = [];
+
+  for (const thread of db.threads.values()) {
+    const space = db.spaces.get(thread.spaceId);
+    if (!space) continue;
+    touchLifecycle(space);
+    if (space.lifecycle === "archived") continue;
+
+    const posts = postsByThread.get(thread.id) ?? EMPTY_POSTS;
+    if (posts.length === 0) continue;
+
+    const myPosts = posts.filter((p) => p.authorId === userId);
+    if (myPosts.length === 0) continue;
+
+    const myLastPostAt = myPosts.reduce((acc, p) => Math.max(acc, p.createdAt), 0);
+    const newerByOthers = posts.filter(
+      (p) => p.createdAt > myLastPostAt && p.authorId !== userId
+    );
+    const newSinceMine = newerByOthers.length;
+
+    const sorted = [...posts].sort((a, b) => b.createdAt - a.createdAt);
+    const latest = sorted[0];
+    const lastPostAt = latest.createdAt;
+
+    const newRepliers = new Set(newerByOthers.map((p) => p.authorId));
+    const author = db.users.get(latest.authorId);
+    const lastPostBy =
+      latest.authorId === userId
+        ? "あなた"
+        : latest.identityMode === "named"
+          ? author?.displayName ?? "匿名"
+          : "匿名";
+
+    // 再発見: 自分の最後の投稿から一定時間沈黙したのち、直近に新たな動きが戻った状態。
+    const isReemergence =
+      newSinceMine > 0 &&
+      lastPostAt - myLastPostAt >= REEMERGENCE_GAP_MS &&
+      now - lastPostAt < 7 * 24 * 60 * 60 * 1000;
+
+    const previewSource = latest.body.replace(/\s+/g, " ").trim();
+    const preview =
+      previewSource.length > 80
+        ? `${previewSource.slice(0, 80)}…`
+        : previewSource;
+
+    rows.push({
+      thread,
+      space,
+      totalPosts: posts.length,
+      myLastPostAt,
+      lastPostAt,
+      lastPostBy,
+      newSinceMine,
+      newReplierCount: newRepliers.size,
+      isReemergence,
+      preview,
+    });
+  }
+
+  // 並び: 自分の投稿後に動きがある議論を優先し、その中で直近の更新が新しい順。
+  rows.sort((a, b) => {
+    const aHasNew = a.newSinceMine > 0 ? 1 : 0;
+    const bHasNew = b.newSinceMine > 0 ? 1 : 0;
+    if (aHasNew !== bHasNew) return bHasNew - aHasNew;
+    return b.lastPostAt - a.lastPostAt;
+  });
+
+  return rows.slice(0, limit);
+}
+
 // ---- 管理画面用の参照API ----
 
 export function isAnyAdmin(userId: string): boolean {
