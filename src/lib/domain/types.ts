@@ -94,6 +94,7 @@ export interface Post {
   identityMode: IdentityMode;
   body: string;
   createdAt: number;
+  editedAt?: number;
   reactions: Record<ReactionKind, number>;
   isAdminPost: boolean; // 投稿時点で管理者だったか (履歴のため)
   replyTo?: PostId;

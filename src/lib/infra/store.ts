@@ -58,6 +58,10 @@ const MASS_WEIGHT: Record<ReactionKind, number> = {
 // 投稿/返信の基礎加算。
 const POST_MASS_GAIN = 1;
 
+// 重力の整合性を守るため、投稿編集は「初期ドラフト修正」のみ許可する。
+// 反応/返信が付いた後の本文差し替えは禁止。
+export const POST_EDIT_WINDOW_MS = 10 * 60 * 1000;
+
 // リアクション実行者には投稿者加算の一部のみ付与する。
 const REACTOR_BONUS_RATE = 0.25;
 
@@ -860,6 +864,85 @@ export function deletePost(
     spaceId: target.spaceId,
     deletedCount,
   };
+}
+
+type PostEditError =
+  | "post_not_found"
+  | "forbidden"
+  | "space_archived"
+  | "edit_window_expired"
+  | "post_has_reactions"
+  | "post_has_replies"
+  | "post_reported"
+  | "post_moderated";
+
+function evaluatePostEditability(
+  db: DB,
+  post: Post,
+  byUserId: string,
+  now: number
+): { canEdit: true } | { canEdit: false; reason: PostEditError } {
+  if (post.authorId !== byUserId) return { canEdit: false, reason: "forbidden" };
+
+  const space = db.spaces.get(post.spaceId);
+  if (space) {
+    touchLifecycle(space);
+    if (!isWritable(space)) return { canEdit: false, reason: "space_archived" };
+  }
+
+  if (now - post.createdAt > POST_EDIT_WINDOW_MS) {
+    return { canEdit: false, reason: "edit_window_expired" };
+  }
+
+  const reactionTotal = Object.values(post.reactions ?? {}).reduce(
+    (sum, n) => sum + (typeof n === "number" ? n : 0),
+    0
+  );
+  if (reactionTotal > 0) return { canEdit: false, reason: "post_has_reactions" };
+
+  const threadPosts = ensurePostsByThreadIndex(db).get(post.threadId) ?? EMPTY_POSTS;
+  const hasReply = threadPosts.some((p) => p.replyTo === post.id);
+  if (hasReply) return { canEdit: false, reason: "post_has_replies" };
+
+  if ((post.reportCount ?? 0) > 0) return { canEdit: false, reason: "post_reported" };
+  if (post.isPinned || post.isSunk) return { canEdit: false, reason: "post_moderated" };
+
+  return { canEdit: true };
+}
+
+export function getPostEditability(
+  postId: string,
+  byUserId: string,
+  now: number = Date.now()
+): { canEdit: boolean; reason?: PostEditError } {
+  const db = getDB();
+  const post = db.posts.get(postId);
+  if (!post) return { canEdit: false, reason: "post_not_found" };
+  const result = evaluatePostEditability(db, post, byUserId, now);
+  if (!result.canEdit) return { canEdit: false, reason: result.reason };
+  return { canEdit: true };
+}
+
+export function updatePost(input: {
+  postId: string;
+  byUserId: string;
+  body: string;
+}): Post | { error: string } {
+  const db = getDB();
+  const post = db.posts.get(input.postId);
+  if (!post) return { error: "post_not_found" };
+
+  const editability = evaluatePostEditability(db, post, input.byUserId, Date.now());
+  if (!editability.canEdit) return { error: editability.reason };
+
+  const body = input.body.trim();
+  if (!body) return { error: "empty_body" };
+  if (body.length > 2000) return { error: "too_long" };
+
+  post.body = body;
+  post.editedAt = Date.now();
+  persist();
+  return post;
 }
 
 export function react(input: {

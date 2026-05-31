@@ -149,7 +149,7 @@ export function ReplyComposer({
           <p className="font-medium text-[var(--foreground)]">
             返信先 {replyToDisplayName ? `(${replyToDisplayName})` : ""}
           </p>
-          <p className="mt-1 line-clamp-3">{preview}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words">{preview}</p>
         </div>
       )}
       <textarea

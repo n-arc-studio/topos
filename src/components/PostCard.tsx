@@ -14,6 +14,18 @@ const REACTION_ORDER: ReactionKind[] = [
   "laugh",
   "tsukkomi",
 ];
+const MAX_BODY_LENGTH = 2000;
+
+function formatLagJP(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return "直後";
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (ms < minute) return "1分未満後";
+  if (ms < hour) return `${Math.floor(ms / minute)}分後`;
+  if (ms < day) return `${Math.floor(ms / hour)}時間後`;
+  return `${Math.floor(ms / day)}日後`;
+}
 
 export function PostCard({
   post,
@@ -25,12 +37,15 @@ export function PostCard({
   meIsAdmin,
   meIsAnonymous,
   canDelete,
+  canEdit,
+  editDisabledReason,
   threadId,
   depth = 0,
   halfLifeHours,
   events,
   isMyPost = false,
   distortionLevel = 0,
+  replyContext,
 }: {
   post: Post;
   displayName: string;
@@ -41,23 +56,37 @@ export function PostCard({
   meIsAdmin: boolean;
   meIsAnonymous: boolean;
   canDelete: boolean;
+  canEdit: boolean;
+  editDisabledReason?: string;
   threadId: string;
   depth?: number;
   halfLifeHours?: number;
   events?: GravityEvent[];
   isMyPost?: boolean;
   distortionLevel?: number;
+  replyContext?: {
+    postId: string;
+    displayName: string;
+    body: string;
+    createdAt: number;
+    lagMs: number;
+  };
 }) {
   const [, start] = useTransition();
   const [pendingReaction, setPendingReaction] = useState<ReactionKind | null>(null);
   const [pendingReport, setPendingReport] = useState(false);
   const [pendingModeration, setPendingModeration] = useState(false);
+  const [pendingEdit, setPendingEdit] = useState(false);
   const [reactions, setReactions] = useState(post.reactions);
   const [reportCount, setReportCount] = useState(post.reportCount);
   const [isPinned, setIsPinned] = useState(post.isPinned);
   const [isSunk, setIsSunk] = useState(post.isSunk);
+  const [bodyText, setBodyText] = useState(post.body);
+  const [editedAt, setEditedAt] = useState(post.editedAt);
   const [err, setErr] = useState<string | null>(null);
   const [replyOpen, setReplyOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDraft, setEditDraft] = useState(post.body);
   const [chartOpen, setChartOpen] = useState(false);
 
   function react(kind: ReactionKind) {
@@ -178,6 +207,66 @@ export function PostCard({
     });
   }
 
+  function mapEditError(code: string | undefined): string {
+    switch (code) {
+      case "empty_body":
+        return "本文を入力してください。";
+      case "too_long":
+        return `本文は${MAX_BODY_LENGTH}文字以内で入力してください。`;
+      case "forbidden":
+        return "この投稿は編集できません。";
+      case "edit_window_expired":
+        return "編集期限(投稿後10分)を過ぎたため、本文は固定されました。";
+      case "post_has_reactions":
+        return "反応が付いた投稿は重力整合性のため編集できません。";
+      case "post_has_replies":
+        return "返信が付いた投稿は文脈保全のため編集できません。";
+      case "post_reported":
+      case "post_moderated":
+        return "通報またはモデレーション対象の投稿は編集できません。";
+      default:
+        return "編集に失敗しました。時間をおいて再試行してください。";
+    }
+  }
+
+  function saveEdit() {
+    if (pendingEdit) return;
+    setErr(null);
+    const trimmed = editDraft.trim();
+    if (!trimmed) {
+      setErr("本文を入力してください。");
+      return;
+    }
+    if (editDraft.length > MAX_BODY_LENGTH) {
+      setErr(`本文は${MAX_BODY_LENGTH}文字以内で入力してください。`);
+      return;
+    }
+    setPendingEdit(true);
+    start(async () => {
+      try {
+        const res = await fetch(`/api/posts/${post.id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ body: trimmed }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setErr(mapEditError(json.error));
+          return;
+        }
+        setBodyText(typeof json.body === "string" ? json.body : trimmed);
+        if (typeof json.editedAt === "number") {
+          setEditedAt(json.editedAt);
+        }
+        setEditOpen(false);
+      } catch {
+        setErr("通信に失敗しました");
+      } finally {
+        setPendingEdit(false);
+      }
+    });
+  }
+
   // 沈殿表現: 透過と文字サイズで可視化 (ピン留めは沈ませない)
   const visualSediment = isPinned ? 0 : isSunk ? 0.85 : sediment;
   const opacity = 1 - visualSediment * 0.55;
@@ -193,9 +282,12 @@ export function PostCard({
   const distortionBlur = 8 + distortionNormalized * 16;
   const gravityDelayMs = Math.min(depth, 4) * 70;
   const gravityDurationMs = 520 + distortionNormalized * 260;
+  const replyPreview = replyContext?.body.trim().slice(0, 120);
+  const overEditLimit = editDraft.length > MAX_BODY_LENGTH;
 
   return (
     <article
+      id={`post-${post.id}`}
       className={`gravity-card rounded-md border border-[var(--border)] p-3 transition ${
         isMyPost ? "gravity-distortion gravity-card--distorted" : ""
       }`}
@@ -250,12 +342,63 @@ export function PostCard({
           </button>{" "}· 返信 {replyCount}
         </span>
       </header>
-      <p
-        className="whitespace-pre-wrap break-words leading-relaxed"
-        style={{ fontSize: `${fontSize}rem` }}
-      >
-        {post.body}
-      </p>
+      <div style={{ fontSize: `${fontSize}rem` }}>
+        {replyContext && (
+          <div className="mb-2 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs text-[var(--muted)] leading-relaxed">
+            <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+              <a
+                href={`#post-${replyContext.postId}`}
+                className="text-[var(--accent)] hover:underline"
+              >
+                ↪ {replyContext.displayName} への返信
+              </a>
+              <span>({new Date(replyContext.createdAt).toLocaleString("ja-JP")})</span>
+              <span>+{formatLagJP(replyContext.lagMs)}</span>
+            </span>
+            {replyPreview && (
+              <span className="mt-1 block whitespace-pre-wrap break-words">「{replyPreview}」</span>
+            )}
+          </div>
+        )}
+        {editOpen ? (
+          <div className="space-y-2">
+            <textarea
+              value={editDraft}
+              onChange={(e) => setEditDraft(e.target.value)}
+              rows={4}
+              className="w-full resize-y rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className={overEditLimit ? "text-[var(--warn)]" : "text-[var(--muted)]"}>
+                {editDraft.length}/{MAX_BODY_LENGTH}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditOpen(false);
+                    setEditDraft(bodyText);
+                    setErr(null);
+                  }}
+                  className="rounded border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  onClick={saveEdit}
+                  disabled={pendingEdit || !editDraft.trim() || overEditLimit}
+                  className="rounded bg-[var(--accent)] px-2 py-0.5 text-xs text-black font-medium disabled:opacity-50"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="whitespace-pre-wrap break-words leading-relaxed">{bodyText}</p>
+        )}
+      </div>
       {chartOpen && (
         <div className="mt-2 w-full overflow-x-auto rounded border border-[var(--border)] bg-[var(--panel)] p-2">
           <GravityChart
@@ -287,6 +430,19 @@ export function PostCard({
         >
           返信
         </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => {
+              setErr(null);
+              setEditDraft(bodyText);
+              setEditOpen((v) => !v);
+            }}
+            className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
+          >
+            {editOpen ? "編集を閉じる" : "編集"}
+          </button>
+        )}
         <button
           type="button"
           onClick={report}
@@ -331,6 +487,14 @@ export function PostCard({
         {err && (
           <span className="text-xs text-[var(--warn)]">{err}</span>
         )}
+        {!canEdit && editDisabledReason && (
+          <span className="text-xs text-[var(--muted)]">
+            編集不可: {mapEditError(editDisabledReason)}
+          </span>
+        )}
+        {typeof editedAt === "number" && editedAt > post.createdAt && (
+          <span className="text-xs text-[var(--muted)]">編集: {new Date(editedAt).toLocaleString("ja-JP")}</span>
+        )}
         <span className="text-xs text-[var(--muted)] sm:ml-auto">
           {new Date(post.createdAt).toLocaleString("ja-JP")}
         </span>
@@ -340,7 +504,7 @@ export function PostCard({
           threadId={threadId}
           replyTo={post.id}
           replyToDisplayName={displayName}
-          replyToPreview={post.body}
+          replyToPreview={bodyText}
           canBeAnonymous={meIsAnonymous}
           onDone={() => setReplyOpen(false)}
         />

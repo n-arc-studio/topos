@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  getPostEditability,
   getSpace,
   getThread,
   getUser,
@@ -51,6 +52,13 @@ export default async function ThreadPage({
 
   const now = currentTimeMs();
   const allPosts = listPosts(currentThread.id);
+  const postById = new Map(allPosts.map((p) => [p.id, p]));
+  const editabilityByPostId = new Map<string, { canEdit: boolean; reason?: string }>();
+  if (meId) {
+    for (const p of allPosts) {
+      editabilityByPostId.set(p.id, getPostEditability(p.id, meId, now));
+    }
+  }
   const stats = computeStats(allPosts);
   const gravityByPostId: Record<string, number> = {};
 
@@ -93,7 +101,9 @@ export default async function ThreadPage({
       totalMass: (u.publicMass ?? 0) + (u.anonymousMass ?? 0),
     }))
     .sort((a, b) => b.totalMass - a.totalMass);
-  const massTop = rankedUsers.slice(0, 8);
+  const massRankingLimit = 5;
+  const massTop = rankedUsers.slice(0, massRankingLimit);
+  const hiddenMassCount = Math.max(0, rankedUsers.length - massRankingLimit);
   const meMassRank = meId
     ? rankedUsers.findIndex((entry) => entry.user.id === meId) + 1
     : 0;
@@ -140,10 +150,19 @@ export default async function ThreadPage({
     const author = getUser(f.post.authorId);
     const displayName =
       f.post.identityMode === "named" && author ? author.displayName : "名無し";
+    const parentPost = f.post.replyTo ? postById.get(f.post.replyTo) : undefined;
+    const parentAuthor = parentPost ? getUser(parentPost.authorId) : undefined;
+    const parentDisplayName =
+      parentPost && parentPost.identityMode === "named" && parentAuthor
+        ? parentAuthor.displayName
+        : "名無し";
     const ctx = ctxOf(f.post);
     const g = scoreOf(f.post);
     const s = sedimentLevel(f.post, ctx);
     const isMyPost = !!meId && f.post.authorId === meId;
+    const editability = isMyPost
+      ? editabilityByPostId.get(f.post.id) ?? { canEdit: false }
+      : { canEdit: false };
     const distortionLevel = maxGravity > 0 ? Math.min(1, g / maxGravity) : 0;
     return (
       <PostCard
@@ -157,12 +176,25 @@ export default async function ThreadPage({
         meIsAdmin={meIsAdmin}
         meIsAnonymous={!meIsAdmin}
         canDelete={!!me && (meIsAdmin || f.post.authorId === meId)}
+        canEdit={editability.canEdit}
+        editDisabledReason={editability.reason}
         threadId={currentThread.id}
         depth={layered ? 0 : f.depth}
         halfLifeHours={currentSpace.gravityConfig?.halfLifeHours}
         events={listPostEvents(f.post.id)}
         isMyPost={isMyPost}
         distortionLevel={distortionLevel}
+        replyContext={
+          parentPost
+            ? {
+                postId: parentPost.id,
+                displayName: parentDisplayName,
+                body: parentPost.body,
+                createdAt: parentPost.createdAt,
+                lagMs: Math.max(0, f.post.createdAt - parentPost.createdAt),
+              }
+            : undefined
+        }
       />
     );
   }
@@ -187,12 +219,14 @@ export default async function ThreadPage({
               canBeAnonymous={!meIsAdmin}
               todayCount={myTodayPosts}
             />
-            <div className="mt-3 rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-xs text-[var(--muted)] space-y-1">
-              <p className="font-medium text-[var(--foreground)]">投稿ガイド</p>
-              <p>迷ったら「問い」「要約」「反証」「改善提案」のどれか1つで始めてください。</p>
-              <p>
-                匿名は視点を出しやすく、記名は責任を明示しやすいモードです。
-              </p>
+            <div className="mt-3 rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-xs text-[var(--muted)] space-y-2">
+              <div className="space-y-1">
+                <p className="font-medium text-[var(--foreground)]">投稿ガイド</p>
+                <p>迷ったら「問い」「要約」「反証」「改善提案」のどれか1つで始めてください。</p>
+                <p>
+                  匿名は視点を出しやすく、記名は責任を明示しやすいモードです。
+                </p>
+              </div>
             </div>
             {meIsAdmin && (
               <p className="text-xs text-[var(--warn)] mt-2">
@@ -228,30 +262,15 @@ export default async function ThreadPage({
                 </span>
                 <span className="text-[var(--muted)]">投稿数 {myPosts.length}</span>
               </div>
-              <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-xs text-[var(--muted)] space-y-2">
-                <p className="font-medium text-[var(--foreground)]">見方ガイド</p>
-                <div className="space-y-1">
-                  <p>
-                    <span className="font-medium text-[var(--foreground)]">定義:</span>{" "}
-                    歪み率 = このスレッド全体の重力のうち、あなたの投稿が占める割合
-                  </p>
-                  <p>
-                    <span className="font-medium text-[var(--foreground)]">目安:</span>
-                  </p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    <li>0-10%: 影響小</li>
-                    <li>10-30%: 存在感あり</li>
-                    <li>30%以上: 流れを主導</li>
-                  </ul>
-                  <p>
-                    <span className="font-medium text-[var(--foreground)]">増減要因:</span>
-                  </p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    <li>増える: 反応がつく、返信が連なる、参加者が広がる</li>
-                    <li>下がる: 時間経過、通報</li>
-                  </ul>
-                </div>
-              </div>
+              <p className="text-xs text-[var(--muted)] leading-relaxed">
+                まずは、この数字が今のスレッドでどれくらい効いているかを見てください。
+              </p>
+              <Link
+                href="/about/gravity-guide"
+                className="inline-flex text-xs text-[var(--accent)] hover:underline"
+              >
+                重力歪みの見方を詳しく読む →
+              </Link>
             </div>
           ) : (
             <p className="mt-2 text-xs text-[var(--muted)]">
@@ -297,7 +316,12 @@ export default async function ThreadPage({
                 );
               })}
             </ol>
-            {me && meMassRank > 8 && (
+            {hiddenMassCount > 0 && (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                ほか {hiddenMassCount} 件は省略表示しています。
+              </p>
+            )}
+            {me && meMassRank > massRankingLimit && (
               <p className="mt-2 text-xs text-[var(--muted)]">
                 あなたの順位: {meMassRank}位
               </p>
