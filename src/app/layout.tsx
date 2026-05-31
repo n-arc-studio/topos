@@ -110,7 +110,23 @@ export default async function RootLayout({
                 思想
               </Link>
               {me ? (
-                <span className="truncate max-w-[64vw]">{me.displayName}</span>
+                <div className="flex min-w-0 items-center gap-3">
+                  {(isPlatformAdmin(me.id) || me.isAdminOf.length > 0) && (
+                    <Link
+                      href={isPlatformAdmin(me.id) ? "/admin" : "/admin/spaces"}
+                      className="text-[var(--accent)] hover:underline"
+                    >
+                      管理
+                    </Link>
+                  )}
+                  <Link
+                    href="/profile"
+                    className="truncate max-w-[36vw] hover:text-[var(--accent)] transition"
+                  >
+                    {me.displayName}
+                  </Link>
+                  <LogoutButton />
+                </div>
               ) : (
                 <div className="flex items-center gap-3">
                   <Link href="/login" className="hover:text-[var(--accent)] transition">
