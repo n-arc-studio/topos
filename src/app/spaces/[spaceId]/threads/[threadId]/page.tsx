@@ -26,6 +26,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { currentUser } from "@/lib/session/identity";
 import { PostComposer } from "@/components/PostComposer";
 import { PostCard } from "@/components/PostCard";
+import { ReplyHashResolver } from "@/components/ReplyHashResolver";
 import { currentTimeMs } from "@/lib/time";
 
 export default async function ThreadPage({
@@ -52,6 +53,11 @@ export default async function ThreadPage({
 
   const now = currentTimeMs();
   const allPosts = listPosts(currentThread.id);
+  const latestPostId =
+    allPosts.length > 0
+      ? allPosts.reduce((latest, p) => (p.createdAt > latest.createdAt ? p : latest), allPosts[0])
+          .id
+      : null;
   const postById = new Map(allPosts.map((p) => [p.id, p]));
   const editabilityByPostId = new Map<string, { canEdit: boolean; reason?: string }>();
   if (meId) {
@@ -201,6 +207,7 @@ export default async function ThreadPage({
 
   return (
     <div className="space-y-6">
+      <ReplyHashResolver latestPostId={latestPostId} />
       <section>
         <Link
           href={`/spaces/${currentSpace.id}`}

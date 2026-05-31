@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { MobileComposeCta } from "@/components/MobileComposeCta";
 import { LogoutButton } from "@/components/LogoutButton";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { PwaRegister } from "@/components/PwaRegister";
@@ -130,6 +131,7 @@ export default async function RootLayout({
             <span className="font-mono opacity-80">v{appVersion}</span>
           </div>
         </footer>
+        <MobileComposeCta isLoggedIn={!!me} />
         <MobileBottomNav />
         <PwaRegister />
       </body>

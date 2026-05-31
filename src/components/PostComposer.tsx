@@ -135,6 +135,7 @@ export function PostComposer({
         </div>
       )}
       <textarea
+        id="thread-post-composer"
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="内容を投稿する。必要なら提案や修正依頼として書く。"
