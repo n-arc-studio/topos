@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { Post, ReactionKind, GravityEvent } from "@/lib/domain/types";
 import { REACTION_LABEL } from "@/lib/domain/types";
 import { AdminDeleteButton } from "./AdminDeleteButton";
@@ -96,6 +96,7 @@ export function PostCard({
   const [editedAt, setEditedAt] = useState(post.editedAt);
   const [err, setErr] = useState<string | null>(null);
   const [replyOpen, setReplyOpen] = useState(false);
+  const [autoFocusReply, setAutoFocusReply] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editDraft, setEditDraft] = useState(post.body);
   const [chartOpen, setChartOpen] = useState(false);
@@ -295,6 +296,21 @@ export function PostCard({
   const gravityDurationMs = 520 + distortionNormalized * 260;
   const replyPreview = replyContext?.body.trim().slice(0, 120);
   const overEditLimit = editDraft.length > MAX_BODY_LENGTH;
+
+  useEffect(() => {
+    const hashTarget = `reply-${post.id}`;
+
+    const openByHash = () => {
+      const current = window.location.hash.replace(/^#/, "");
+      if (current !== hashTarget) return;
+      setReplyOpen(true);
+      setAutoFocusReply(true);
+    };
+
+    openByHash();
+    window.addEventListener("hashchange", openByHash);
+    return () => window.removeEventListener("hashchange", openByHash);
+  }, [post.id]);
 
   return (
     <article
@@ -524,7 +540,11 @@ export function PostCard({
           replyToDisplayName={displayName}
           replyToPreview={bodyText}
           canBeAnonymous={meIsAnonymous}
-          onDone={() => setReplyOpen(false)}
+          autoFocus={autoFocusReply}
+          onDone={() => {
+            setReplyOpen(false);
+            setAutoFocusReply(false);
+          }}
         />
       )}
     </article>
