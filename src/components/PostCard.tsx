@@ -320,7 +320,7 @@ export function PostCard({
   return (
     <article
       id={`post-${post.id}`}
-      className={`gravity-card rounded-md border border-[var(--border)] p-3 transition ${
+      className={`gravity-card rounded-lg border border-[var(--border)] p-3.5 sm:p-3 transition ${
         isMyPost ? "gravity-distortion gravity-card--distorted" : ""
       }`}
       style={{
@@ -336,7 +336,7 @@ export function PostCard({
         ["--gravity-duration" as string]: `${gravityDurationMs}ms`,
       }}
     >
-      <header className="flex flex-wrap items-center gap-x-2 gap-y-1 justify-between text-xs text-[var(--muted)] mb-1">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] text-[var(--muted)] sm:text-xs">
         <span className="flex items-center gap-1.5 flex-wrap">
           {isPinned && (
             <span className="text-[var(--accent)] font-medium">📌 ピン留め</span>
@@ -374,7 +374,7 @@ export function PostCard({
           </button>{" "}· 返信 {replyCount}
         </span>
       </header>
-      <div style={{ fontSize: `${fontSize}rem` }}>
+      <div className="space-y-2" style={{ fontSize: `${fontSize}rem` }}>
         {replyContext && (
           <div className="mb-2 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs text-[var(--muted)] leading-relaxed">
             <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
@@ -428,7 +428,7 @@ export function PostCard({
             </div>
           </div>
         ) : (
-          <p className="whitespace-pre-wrap break-words leading-relaxed">{bodyText}</p>
+          <p className="whitespace-pre-wrap break-words leading-[1.9] text-[var(--foreground)]">{bodyText}</p>
         )}
       </div>
       {chartOpen && (
@@ -441,7 +441,7 @@ export function PostCard({
           />
         </div>
       )}
-      <footer className="mt-3 space-y-2">
+      <footer className="mt-3 space-y-2 border-t border-[var(--border)]/70 pt-2.5">
         <div className="grid grid-cols-3 gap-2 sm:hidden">
           {PRIMARY_REACTION_ORDER.map((k) => (
             <button
@@ -639,19 +639,19 @@ export function PostCard({
         </div>
 
         {err && (
-          <span className="text-xs text-[var(--warn)]">{err}</span>
+          <p className="text-xs text-[var(--warn)]">{err}</p>
         )}
         {!canEdit && editDisabledReason && (
-          <span className="text-xs text-[var(--muted)]">
+          <p className="text-xs text-[var(--muted)]">
             編集不可: {mapEditError(editDisabledReason)}
-          </span>
+          </p>
         )}
-        {typeof editedAt === "number" && editedAt > post.createdAt && (
-          <span className="text-xs text-[var(--muted)]">編集: {new Date(editedAt).toLocaleString("ja-JP")}</span>
-        )}
-        <span className="text-xs text-[var(--muted)] sm:ml-auto">
-          {new Date(post.createdAt).toLocaleString("ja-JP")}
-        </span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--muted)] sm:text-xs">
+          {typeof editedAt === "number" && editedAt > post.createdAt && (
+            <span>編集: {new Date(editedAt).toLocaleString("ja-JP")}</span>
+          )}
+          <span className="sm:ml-auto">{new Date(post.createdAt).toLocaleString("ja-JP")}</span>
+        </div>
       </footer>
       {replyOpen && (
         <ReplyComposer

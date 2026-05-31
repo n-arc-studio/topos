@@ -150,7 +150,7 @@ export function ReplyComposer({
           onDone?.();
         });
       }}
-      className="space-y-2 mt-2"
+      className="mt-2 space-y-3"
     >
       {preview && (
         <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-xs text-[var(--muted)]">
@@ -165,8 +165,8 @@ export function ReplyComposer({
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="返信を書く (突っ込み歓迎)"
-        rows={2}
-        className="w-full bg-[var(--panel-2)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent)] resize-y"
+        rows={3}
+        className="w-full bg-[var(--panel-2)] border border-[var(--border)] rounded px-3 py-2.5 text-[15px] leading-[1.8] outline-none focus:border-[var(--accent)] resize-y"
       />
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {REPLY_TEMPLATES.map((template) => (
