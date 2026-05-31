@@ -216,125 +216,27 @@ export default async function ThreadPage({
           ← {currentSpace.name}
         </Link>
         <h1 className="text-xl font-semibold mt-2">{currentThread.title}</h1>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          まず本文を読み、必要な投稿に返信してください。補助情報は下の折りたたみから確認できます。
+        </p>
       </section>
 
-      <section id="composer" className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-        {me ? (
-          <>
-            <PostComposer
-              threadId={currentThread.id}
-              canBeAnonymous={!meIsAdmin}
-              todayCount={myTodayPosts}
-            />
-            <div className="mt-3 rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-xs text-[var(--muted)] space-y-2">
-              <div className="space-y-1">
-                <p className="font-medium text-[var(--foreground)]">投稿ガイド</p>
-                <p>迷ったら「問い」「要約」「反証」「改善提案」のどれか1つで始めてください。</p>
-                <p>
-                  匿名は視点を出しやすく、記名は責任を明示しやすいモードです。
-                </p>
-              </div>
-            </div>
-            {meIsAdmin && (
-              <p className="text-xs text-[var(--warn)] mt-2">
-                あなたはこの場の管理者です。記名投稿のみ可能です(責任の可視化のため)。
-              </p>
-            )}
-          </>
-        ) : (
-          <AuthGate message="投稿や返信にはログインが必要です。" />
-        )}
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2">
-        <article className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <h2 className="text-sm font-semibold">あなたの重力歪み</h2>
-          {me ? (
-            <div className="mt-2 space-y-2">
-              <p className="text-xs text-[var(--muted)]">
-                あなたの投稿がこのスレッド全体の重力に与えている影響
-              </p>
-              <div className="h-2 rounded-full bg-[var(--panel-2)] overflow-hidden border border-[var(--border)]">
-                <div
-                  className="gravity-share-fill h-full bg-[var(--accent)] transition-all duration-700"
-                  style={{ width: `${(myGravityShare * 100).toFixed(1)}%` }}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                <span>
-                  歪み率 <strong>{(myGravityShare * 100).toFixed(1)}%</strong>
-                </span>
-                <span className="text-[var(--muted)]">
-                  あなたの重力 {myGravity.toFixed(1)} / 全体 {totalGravity.toFixed(1)}
-                </span>
-                <span className="text-[var(--muted)]">投稿数 {myPosts.length}</span>
-              </div>
-              <p className="text-xs text-[var(--muted)] leading-relaxed">
-                まずは、この数字が今のスレッドでどれくらい効いているかを見てください。
-              </p>
-              <Link
-                href="/about/gravity-guide"
-                className="inline-flex text-xs text-[var(--accent)] hover:underline"
-              >
-                重力歪みの見方を詳しく読む →
-              </Link>
-            </div>
-          ) : (
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              ログインすると「自分がどれだけ場をゆがめているか」を可視化できます。
-            </p>
-          )}
-        </article>
-
-        <article className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <h2 className="text-sm font-semibold">質量ランキング</h2>
-          <details className="mt-2">
-            <summary className="cursor-pointer text-xs text-[var(--muted)] hover:text-[var(--foreground)]">
-              ランキングを表示する
-            </summary>
-            <ol className="mt-2 space-y-1.5 text-sm">
-              {massTop.map((entry, index) => {
-                const isMe = !!meId && entry.user.id === meId;
-                return (
-                  <li
-                    key={entry.user.id}
-                    className={`flex items-center justify-between rounded px-2 py-1 border ${
-                      isMe
-                        ? "border-[var(--accent)]"
-                        : "border-transparent"
-                    }`}
-                    style={
-                      isMe
-                        ? {
-                            backgroundColor:
-                              "color-mix(in oklab, var(--panel) 75%, var(--accent) 10%)",
-                          }
-                        : undefined
-                    }
-                  >
-                    <span className="truncate">
-                      {index + 1}. {entry.user.displayName}
-                      {isMe ? " (あなた)" : ""}
-                    </span>
-                    <span className="text-xs text-[var(--muted)]">
-                      {entry.totalMass.toFixed(1)} mass
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-            {hiddenMassCount > 0 && (
-              <p className="mt-2 text-xs text-[var(--muted)]">
-                ほか {hiddenMassCount} 件は省略表示しています。
-              </p>
-            )}
-            {me && meMassRank > massRankingLimit && (
-              <p className="mt-2 text-xs text-[var(--muted)]">
-                あなたの順位: {meMassRank}位
-              </p>
-            )}
-          </details>
-        </article>
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <a
+            href="#thread-stream"
+            className="rounded border border-[var(--border)] px-2 py-1 text-[var(--muted)] hover:text-[var(--foreground)]"
+          >
+            投稿を読む
+          </a>
+          <a
+            href="#composer"
+            className="rounded bg-[var(--accent)] px-2.5 py-1 font-medium text-black"
+          >
+            返信を始める
+          </a>
+          <span className="text-[var(--muted)]">返信ボタンは各投稿にもあります</span>
+        </div>
       </section>
 
       {/* 表示モード切替 */}
@@ -362,53 +264,184 @@ export default async function ThreadPage({
         </Link>
       </div>
 
-      {flat.length === 0 ? (
-        <div className="rounded-md border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)] space-y-3">
-          <p>まだ投稿はありません。最初のひとことが場をつくります。</p>
-          <div className="text-xs space-y-1">
-            <p>例: 「このスレで先に定義したい言葉は?」</p>
-            <p>例: 「ここまでの議論を3行で要約すると?」</p>
-            <p>例: 「次に試す改善案を1つ挙げると?」</p>
+      <section id="thread-stream">
+        {flat.length === 0 ? (
+          <div className="rounded-md border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)] space-y-3">
+            <p>まだ投稿はありません。最初のひとことが場をつくります。</p>
+            <div className="text-xs space-y-1">
+              <p>例: 「このスレで先に定義したい言葉は?」</p>
+              <p>例: 「ここまでの議論を3行で要約すると?」</p>
+              <p>例: 「次に試す改善案を1つ挙げると?」</p>
+            </div>
+            {!me && (
+              <p className="text-xs">
+                <Link
+                  href={`/login?next=${encodeURIComponent(`/spaces/${currentSpace.id}/threads/${currentThread.id}`)}`}
+                  className="text-[var(--accent)] hover:underline"
+                >
+                  ログイン
+                </Link>{" "}
+                すると、このスレッドですぐ投稿できます。
+              </p>
+            )}
           </div>
-          {!me && (
-            <p className="text-xs">
-              <Link
-                href={`/login?next=${encodeURIComponent(`/spaces/${currentSpace.id}/threads/${currentThread.id}`)}`}
-                className="text-[var(--accent)] hover:underline"
-              >
-                ログイン
-              </Link>{" "}
-              すると、このスレッドですぐ投稿できます。
-            </p>
-          )}
-        </div>
-      ) : layered ? (
-        <section className="space-y-6">
-          {LAYER_ORDER.map((layer) => {
-            const group = layerGroups[layer];
-            if (group.length === 0) return null;
-            // 各層内は重力が高い順
-            group.sort(
-              (a, b) =>
-                gravityScore(b.post, ctxOf(b.post)) -
-                gravityScore(a.post, ctxOf(a.post))
-            );
-            return (
-              <div key={layer} className="space-y-2">
-                <header className="flex flex-wrap items-baseline gap-2 border-b border-[var(--border)] pb-1">
-                  <h2 className="text-sm font-medium">{LAYER_LABEL[layer]}</h2>
-                  <span className="text-xs text-[var(--muted)]">
-                    {group.length} 件
-                  </span>
-                </header>
-                <div className="gravity-stream space-y-2">{group.map(renderCard)}</div>
-              </div>
-            );
-          })}
-        </section>
-      ) : (
-        <section className="gravity-stream space-y-3">{flat.map(renderCard)}</section>
-      )}
+        ) : layered ? (
+          <section className="space-y-6">
+            {LAYER_ORDER.map((layer) => {
+              const group = layerGroups[layer];
+              if (group.length === 0) return null;
+              // 各層内は重力が高い順
+              group.sort(
+                (a, b) =>
+                  gravityScore(b.post, ctxOf(b.post)) -
+                  gravityScore(a.post, ctxOf(a.post))
+              );
+              return (
+                <div key={layer} className="space-y-2">
+                  <header className="flex flex-wrap items-baseline gap-2 border-b border-[var(--border)] pb-1">
+                    <h2 className="text-sm font-medium">{LAYER_LABEL[layer]}</h2>
+                    <span className="text-xs text-[var(--muted)]">
+                      {group.length} 件
+                    </span>
+                  </header>
+                  <div className="gravity-stream space-y-2">{group.map(renderCard)}</div>
+                </div>
+              );
+            })}
+          </section>
+        ) : (
+          <section className="gravity-stream space-y-3">{flat.map(renderCard)}</section>
+        )}
+      </section>
+
+      <section id="composer" className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+        {me ? (
+          <details open={flat.length === 0}>
+            <summary className="cursor-pointer text-sm font-medium">返信・投稿を開始する</summary>
+            <div className="mt-3 space-y-3">
+              <PostComposer
+                threadId={currentThread.id}
+                canBeAnonymous={!meIsAdmin}
+                todayCount={myTodayPosts}
+              />
+              <details className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-xs text-[var(--muted)]">
+                <summary className="cursor-pointer font-medium text-[var(--foreground)]">投稿ガイド</summary>
+                <div className="mt-2 space-y-1">
+                  <p>迷ったら「問い」「要約」「反証」「改善提案」のどれか1つで始めてください。</p>
+                  <p>
+                    匿名は視点を出しやすく、記名は責任を明示しやすいモードです。
+                  </p>
+                </div>
+              </details>
+              {meIsAdmin && (
+                <p className="text-xs text-[var(--warn)]">
+                  あなたはこの場の管理者です。記名投稿のみ可能です(責任の可視化のため)。
+                </p>
+              )}
+            </div>
+          </details>
+        ) : (
+          <AuthGate message="投稿や返信にはログインが必要です。" />
+        )}
+      </section>
+
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+        <details>
+          <summary className="cursor-pointer text-sm font-medium text-[var(--muted)]">
+            スレッド補助情報を表示する
+          </summary>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <article className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+              <h2 className="text-sm font-semibold">あなたの重力歪み</h2>
+              {me ? (
+                <div className="mt-2 space-y-2">
+                  <p className="text-xs text-[var(--muted)]">
+                    あなたの投稿がこのスレッド全体の重力に与えている影響
+                  </p>
+                  <div className="h-2 rounded-full bg-[var(--panel-2)] overflow-hidden border border-[var(--border)]">
+                    <div
+                      className="gravity-share-fill h-full bg-[var(--accent)] transition-all duration-700"
+                      style={{ width: `${(myGravityShare * 100).toFixed(1)}%` }}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    <span>
+                      歪み率 <strong>{(myGravityShare * 100).toFixed(1)}%</strong>
+                    </span>
+                    <span className="text-[var(--muted)]">
+                      あなたの重力 {myGravity.toFixed(1)} / 全体 {totalGravity.toFixed(1)}
+                    </span>
+                    <span className="text-[var(--muted)]">投稿数 {myPosts.length}</span>
+                  </div>
+                  <p className="text-xs text-[var(--muted)] leading-relaxed">
+                    まずは、この数字が今のスレッドでどれくらい効いているかを見てください。
+                  </p>
+                  <Link
+                    href="/about/gravity-guide"
+                    className="inline-flex text-xs text-[var(--accent)] hover:underline"
+                  >
+                    重力歪みの見方を詳しく読む →
+                  </Link>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  ログインすると「自分がどれだけ場をゆがめているか」を可視化できます。
+                </p>
+              )}
+            </article>
+
+            <article className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+              <h2 className="text-sm font-semibold">質量ランキング</h2>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs text-[var(--muted)] hover:text-[var(--foreground)]">
+                  ランキングを表示する
+                </summary>
+                <ol className="mt-2 space-y-1.5 text-sm">
+                  {massTop.map((entry, index) => {
+                    const isMe = !!meId && entry.user.id === meId;
+                    return (
+                      <li
+                        key={entry.user.id}
+                        className={`flex items-center justify-between rounded px-2 py-1 border ${
+                          isMe
+                            ? "border-[var(--accent)]"
+                            : "border-transparent"
+                        }`}
+                        style={
+                          isMe
+                            ? {
+                                backgroundColor:
+                                  "color-mix(in oklab, var(--panel) 75%, var(--accent) 10%)",
+                              }
+                            : undefined
+                        }
+                      >
+                        <span className="truncate">
+                          {index + 1}. {entry.user.displayName}
+                          {isMe ? " (あなた)" : ""}
+                        </span>
+                        <span className="text-xs text-[var(--muted)]">
+                          {entry.totalMass.toFixed(1)} mass
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+                {hiddenMassCount > 0 && (
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    ほか {hiddenMassCount} 件は省略表示しています。
+                  </p>
+                )}
+                {me && meMassRank > massRankingLimit && (
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    あなたの順位: {meMassRank}位
+                  </p>
+                )}
+              </details>
+            </article>
+          </div>
+        </details>
+      </section>
     </div>
   );
 }
