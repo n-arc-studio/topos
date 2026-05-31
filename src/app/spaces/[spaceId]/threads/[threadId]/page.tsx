@@ -300,7 +300,7 @@ export default async function ThreadPage({
       </section>
 
       {/* 表示モード切替 */}
-      <div className="flex items-center gap-2 text-xs">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="text-[var(--muted)]">表示:</span>
         <Link
           href={`/spaces/${currentSpace.id}/threads/${currentThread.id}`}
@@ -341,7 +341,7 @@ export default async function ThreadPage({
             );
             return (
               <div key={layer} className="space-y-2">
-                <header className="flex items-baseline gap-2 border-b border-[var(--border)] pb-1">
+                <header className="flex flex-wrap items-baseline gap-2 border-b border-[var(--border)] pb-1">
                   <h2 className="text-sm font-medium">{LAYER_LABEL[layer]}</h2>
                   <span className="text-xs text-[var(--muted)]">
                     {group.length} 件

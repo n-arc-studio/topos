@@ -12,6 +12,7 @@ import {
 import { currentUser } from "@/lib/session/identity";
 import { AdminSpaceCreateForm } from "@/components/AdminSpaceCreateForm";
 import { AdminDeleteButton } from "@/components/AdminDeleteButton";
+import { currentTimeMs } from "@/lib/time";
 
 function fmt(ts: number) {
   return new Date(ts).toLocaleString("ja-JP");
@@ -28,7 +29,7 @@ export default async function AdminPage() {
 
   const spaces = listSpaces();
   const users = listUsers();
-  const now = Date.now();
+  const now = currentTimeMs();
   const activeWindowMs = 7 * 24 * 60 * 60 * 1000;
 
   const allPosts = spaces.flatMap((space) =>
@@ -102,7 +103,7 @@ export default async function AdminPage() {
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-medium">ユーザー一覧 ({users.length})</h2>
           <p className="text-xs text-[var(--muted)]">並び順: 総質量の高い順</p>
         </div>
@@ -167,8 +168,8 @@ export default async function AdminPage() {
                 key={space.id}
                 className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3 text-sm"
               >
-                <div className="flex justify-between text-xs text-[var(--muted)] mb-1">
-                  <span>
+                <div className="mb-1 flex flex-col gap-1 text-xs text-[var(--muted)] sm:flex-row sm:items-center sm:justify-between">
+                  <span className="break-all">
                     {space.name} <span className="opacity-60">/ {space.id}</span>
                   </span>
                   <span>{space.lifecycle ?? "active"}</span>

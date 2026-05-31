@@ -251,13 +251,13 @@ export function PostCard({
         </span>
       </header>
       <p
-        className="whitespace-pre-wrap leading-relaxed"
+        className="whitespace-pre-wrap break-words leading-relaxed"
         style={{ fontSize: `${fontSize}rem` }}
       >
         {post.body}
       </p>
       {chartOpen && (
-        <div className="mt-2 rounded border border-[var(--border)] bg-[var(--panel)] p-2 inline-block">
+        <div className="mt-2 w-full overflow-x-auto rounded border border-[var(--border)] bg-[var(--panel)] p-2">
           <GravityChart
             post={post}
             baseScore={gravity}
@@ -329,9 +329,9 @@ export function PostCard({
           />
         )}
         {err && (
-          <span className="text-xs text-[var(--warn)] ml-2">{err}</span>
+          <span className="text-xs text-[var(--warn)]">{err}</span>
         )}
-        <span className="ml-auto text-xs text-[var(--muted)]">
+        <span className="text-xs text-[var(--muted)] sm:ml-auto">
           {new Date(post.createdAt).toLocaleString("ja-JP")}
         </span>
       </footer>

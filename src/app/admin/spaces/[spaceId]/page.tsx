@@ -134,10 +134,10 @@ export default async function SpaceAdminPage({
                 key={thread.id}
                 className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3"
               >
-                <div className="flex items-center justify-between gap-2 text-sm">
+                <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
                   <Link
                     href={`/spaces/${spaceId}/threads/${thread.id}`}
-                    className="font-medium hover:text-[var(--accent)] transition"
+                    className="font-medium break-words hover:text-[var(--accent)] transition"
                   >
                     {thread.title}
                   </Link>
@@ -223,8 +223,8 @@ export default async function SpaceAdminPage({
                   key={p.id}
                   className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3"
                 >
-                  <div className="text-xs text-[var(--muted)] flex justify-between mb-1">
-                    <span>
+                  <div className="mb-1 flex flex-col gap-1 text-xs text-[var(--muted)] sm:flex-row sm:items-center sm:justify-between">
+                    <span className="break-all">
                       {space.name} <span className="opacity-60">/ {p.threadId}</span>
                     </span>
                     <span className="text-[var(--warn)]">
@@ -277,8 +277,8 @@ export default async function SpaceAdminPage({
                 key={p.id}
                 className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3 opacity-80"
               >
-                <div className="text-xs text-[var(--muted)] flex justify-between mb-1">
-                  <span>
+                <div className="mb-1 flex flex-col gap-1 text-xs text-[var(--muted)] sm:flex-row sm:items-center sm:justify-between">
+                  <span className="break-all">
                     {space.name} <span className="opacity-60">/ {p.threadId}</span>
                   </span>
                   <span>{fmt(p.createdAt)}</span>
@@ -316,8 +316,8 @@ export default async function SpaceAdminPage({
                   key={m.id}
                   className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3 text-sm"
                 >
-                  <div className="flex justify-between text-xs text-[var(--muted)] mb-1">
-                    <span>
+                  <div className="mb-1 flex flex-col gap-1 text-xs text-[var(--muted)] sm:flex-row sm:items-center sm:justify-between">
+                    <span className="break-all">
                       {space.name} <span className="opacity-60">/ {m.kind}</span>
                     </span>
                     <span>{fmt(m.at)}</span>

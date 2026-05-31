@@ -63,8 +63,8 @@ export function ReplyComposer({
         rows={2}
         className="w-full bg-[var(--panel-2)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent)] resize-y"
       />
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           {canBeAnonymous && (
             <>
               <label
@@ -109,7 +109,7 @@ export function ReplyComposer({
         <button
           type="submit"
           disabled={pending || !body.trim()}
-          className="px-3 py-1.5 rounded bg-[var(--accent)] text-white font-medium disabled:opacity-50"
+          className="w-full px-3 py-1.5 rounded bg-[var(--accent)] text-white font-medium disabled:opacity-50 sm:w-auto"
         >
           返信
         </button>

@@ -45,7 +45,7 @@ export function SpaceCharterForm({
 
   return (
     <div className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3 space-y-3">
-      <header className="flex items-center justify-between gap-2">
+      <header className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-medium">{spaceName} の憲章</h3>
         <span className="text-xs text-[var(--muted)]">場の文脈を定義</span>
       </header>
@@ -59,7 +59,7 @@ export function SpaceCharterForm({
           disabled={pending}
         />
       </label>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={save}

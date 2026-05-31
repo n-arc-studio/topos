@@ -57,7 +57,7 @@ export function ThreadMoveForm({
   }
 
   return (
-    <span className="inline-flex items-center gap-2">
+    <span className="inline-flex flex-wrap items-center gap-2">
       <select
         value={targetSpaceId}
         onChange={(e) => setTargetSpaceId(e.target.value)}

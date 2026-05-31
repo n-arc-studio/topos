@@ -110,11 +110,11 @@ export function SpaceConfigForm({
 
   return (
     <div className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3 space-y-3">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-medium">{spaceName} の物理係数</h3>
         <span className="text-xs text-[var(--muted)]">空欄=既定値</span>
       </header>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {FIELDS.map((f) => (
           <label key={f.key} className="text-xs flex flex-col gap-1">
             <span className="text-[var(--muted)]">
@@ -136,7 +136,7 @@ export function SpaceConfigForm({
           </label>
         ))}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={save}

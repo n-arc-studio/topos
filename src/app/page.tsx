@@ -6,6 +6,7 @@ import {
   listThreads,
   refreshStoreFromPersistence,
 } from "@/lib/infra/store";
+import { currentTimeMs } from "@/lib/time";
 
 function timeAgoJP(ts: number, now: number): string {
   const diffMs = now - ts;
@@ -21,7 +22,7 @@ export default async function Home() {
   await refreshStoreFromPersistence();
   const spaces = listSpaces();
   const hot = listHotThreads(5);
-  const now = Date.now();
+  const now = currentTimeMs();
 
   const threadRows = spaces.flatMap((space) =>
     listThreads(space.id).map((thread) => ({ space, thread }))
@@ -83,7 +84,7 @@ export default async function Home() {
 
       {hot.length > 0 && (
         <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-sm font-medium text-[var(--muted)]">
               いま動きのある話題
             </h2>
@@ -142,7 +143,7 @@ export default async function Home() {
       )}
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-semibold">場の一覧</h2>
           <p className="text-xs text-[var(--muted)]">
             場は「文脈の宇宙」。それぞれの場には憲章と管理者がいる。
@@ -162,9 +163,9 @@ export default async function Home() {
               className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 hover:bg-[var(--panel-2)] transition"
             >
               <Link href={`/spaces/${s.id}`} className="block">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="font-medium">{s.name}</h2>
-                  <div className="text-xs text-[var(--muted)] flex items-center gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+                  <h2 className="font-medium break-words">{s.name}</h2>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--muted)]">
                     <span>{threads.length} スレ</span>
                     <span>•</span>
                     <span>{postCount} 投稿</span>

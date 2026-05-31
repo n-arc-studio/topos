@@ -32,7 +32,7 @@ export default async function SpacePage({
         <p className="text-sm text-[var(--muted)] mt-2 leading-relaxed">
           {space.charter}
         </p>
-        <div className="text-xs text-[var(--muted)] mt-3">
+        <div className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-xs text-[var(--muted)]">
           時空管理者:{" "}
           {admins.map((a) => (
             <span key={a.id} className="text-[var(--accent)] mr-2">
@@ -70,9 +70,9 @@ export default async function SpacePage({
                   href={`/spaces/${space.id}/threads/${t.id}`}
                   className="block p-3"
                 >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="font-medium">{t.title}</span>
-                    <span className="text-xs text-[var(--muted)]">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                    <span className="font-medium break-words">{t.title}</span>
+                    <span className="text-xs text-[var(--muted)] sm:text-right">
                       {new Date(t.createdAt).toLocaleString("ja-JP")}
                     </span>
                   </div>

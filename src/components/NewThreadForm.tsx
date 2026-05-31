@@ -34,7 +34,7 @@ export function NewThreadForm({ spaceId }: { spaceId: string }) {
           router.push(`/spaces/${spaceId}/threads/${json.id}`);
         });
       }}
-      className="flex gap-2"
+      className="flex flex-col gap-2 sm:flex-row sm:items-start"
     >
       <input
         value={title}
@@ -45,11 +45,11 @@ export function NewThreadForm({ spaceId }: { spaceId: string }) {
       <button
         type="submit"
         disabled={pending || !title.trim()}
-        className="px-3 py-2 text-sm rounded bg-[var(--accent)] text-black font-medium disabled:opacity-50"
+        className="w-full px-3 py-2 text-sm rounded bg-[var(--accent)] text-black font-medium disabled:opacity-50 sm:w-auto"
       >
         建てる
       </button>
-      {err && <span className="text-xs text-[var(--warn)] self-center">{err}</span>}
+      {err && <span className="text-xs text-[var(--warn)] sm:self-center">{err}</span>}
     </form>
   );
 }

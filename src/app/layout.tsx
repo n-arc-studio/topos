@@ -29,11 +29,11 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <header className="border-b border-[var(--border)] bg-[var(--panel)]/70 backdrop-blur sticky top-0 z-10">
-          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="max-w-3xl mx-auto px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Link href="/" className="font-semibold tracking-wide">
               <span className="text-[var(--accent)]">●</span> Topos
             </Link>
-            <div className="text-xs text-[var(--muted)] flex items-center gap-3">
+            <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[var(--muted)] sm:w-auto sm:justify-end">
               <Link
                 href="/about"
                 className="hover:text-[var(--accent)] transition"
@@ -93,7 +93,7 @@ export default async function RootLayout({
         </header>
         <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6">{children}</main>
         <footer className="border-t border-[var(--border)] text-xs text-[var(--muted)]">
-          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+          <div className="max-w-3xl mx-auto px-4 py-3 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <span>場の重力を測るSNS · MVP</span>
             <span className="font-mono opacity-80">v{appVersion}</span>
           </div>
