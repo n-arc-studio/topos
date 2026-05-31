@@ -145,9 +145,12 @@ export default async function ProfilePage() {
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
         <ProfileForm initialName={me.displayName} />
-        <div className="mt-4 border-t border-[var(--border)] pt-3 text-xs text-[var(--muted)]">
-          <span className="mr-3">アカウント操作</span>
-          <LogoutButton />
+        <div className="mt-4 border-t border-[var(--border)] pt-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs text-[var(--muted)]">アカウント操作</span>
+          <LogoutButton
+            className="inline-flex items-center rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition"
+            label="ログアウト"
+          />
         </div>
       </section>
 

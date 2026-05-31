@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { MobileComposeCta } from "@/components/MobileComposeCta";
-import { LogoutButton } from "@/components/LogoutButton";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { PwaRegister } from "@/components/PwaRegister";
 import { currentUser } from "@/lib/session/identity";
@@ -86,7 +85,6 @@ export default async function RootLayout({
                     匿=
                     <span className="text-[var(--foreground)]">{me.anonymousMass}</span>
                   </span>
-                  <LogoutButton />
                 </>
               ) : (
                 <>
