@@ -71,7 +71,7 @@ export function MobileBottomNav() {
       href: "/#spaces",
       label: "場",
       icon: "spaces" as const,
-      active: pathname === "/" || pathname.startsWith("/spaces/"),
+      active: pathname.startsWith("/spaces/"),
       compose: false,
     },
     {
@@ -87,7 +87,7 @@ export function MobileBottomNav() {
       href: "/#your-threads",
       label: "参加中",
       icon: "activity" as const,
-      active: pathname === "/",
+      active: false,
       compose: false,
     },
     {
