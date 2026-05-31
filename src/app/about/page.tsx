@@ -85,6 +85,7 @@ export default function AboutPage() {
           <li>
             スレッド上部に「あなたの重力歪み」を表示し、
             自分の投稿がそのスレッド全体にどれだけ影響しているかを可視化します。
+            詳細は <Link href="/about/gravity-guide" className="text-[var(--accent)] hover:underline">別ページの見方ガイド</Link> にまとめています。
           </li>
           <li>
             「質量ランキング」は常時表示せず、折りたたみで任意に確認する設計です。
