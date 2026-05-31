@@ -186,12 +186,6 @@ export default async function ThreadPage({
               threadId={currentThread.id}
               canBeAnonymous={!meIsAdmin}
               todayCount={myTodayPosts}
-              nudges={[
-                "前の投稿を読んで、いちばん刺さった1点だけ書くと: ",
-                "この話題を一歩前に進める質問: ",
-                "反対意見をあえて出すなら: ",
-                "ここまでの要点を3行でまとめると: ",
-              ]}
             />
             {meIsAdmin && (
               <p className="text-xs text-[var(--warn)] mt-2">

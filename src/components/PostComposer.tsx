@@ -6,12 +6,10 @@ import { useRouter } from "next/navigation";
 export function PostComposer({
   threadId,
   canBeAnonymous,
-  nudges = [],
   todayCount,
 }: {
   threadId: string;
   canBeAnonymous: boolean;
-  nudges?: string[];
   todayCount?: number;
 }) {
   const [body, setBody] = useState("");
@@ -54,23 +52,6 @@ export function PostComposer({
         <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-xs space-y-1">
           <p className="text-[var(--foreground)] font-medium">今日の書き込み: {todayCount}件</p>
           <p className="text-[var(--muted)]">量より、会話を一歩前に進める一言を重視します。</p>
-        </div>
-      )}
-      {nudges.length > 0 && (
-        <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 space-y-1.5">
-          <p className="text-xs text-[var(--muted)]">ワンタップ下書き</p>
-          <div className="flex flex-wrap gap-1.5">
-            {nudges.map((nudge, idx) => (
-              <button
-                key={`${idx}-${nudge}`}
-                type="button"
-                onClick={() => setBody(nudge)}
-                className="text-xs px-2 py-1 rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
-              >
-                {nudge}
-              </button>
-            ))}
-          </div>
         </div>
       )}
       <textarea
