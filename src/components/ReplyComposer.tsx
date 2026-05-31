@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 const MAX_BODY_LENGTH = 2000;
@@ -41,6 +41,7 @@ export function ReplyComposer({
   replyToDisplayName,
   replyToPreview,
   canBeAnonymous,
+  autoFocus = false,
   onDone,
 }: {
   threadId: string;
@@ -48,6 +49,7 @@ export function ReplyComposer({
   replyToDisplayName?: string;
   replyToPreview?: string;
   canBeAnonymous: boolean;
+  autoFocus?: boolean;
   onDone?: () => void;
 }) {
   const [body, setBody] = useState("");
@@ -58,6 +60,7 @@ export function ReplyComposer({
   const [err, setErr] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
   const router = useRouter();
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const overLimit = body.length > MAX_BODY_LENGTH;
 
   useEffect(() => {
@@ -83,6 +86,11 @@ export function ReplyComposer({
       // no-op
     }
   }, [body, threadId, replyTo]);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    textareaRef.current?.focus();
+  }, [autoFocus]);
 
   function applyTemplate(template: string) {
     setBody((prev) => (prev.trim() ? `${prev}\n\n${template}` : template));
@@ -153,6 +161,7 @@ export function ReplyComposer({
         </div>
       )}
       <textarea
+        ref={textareaRef}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="返信を書く (突っ込み歓迎)"
