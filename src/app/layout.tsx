@@ -119,13 +119,17 @@ export default async function RootLayout({
                       管理
                     </Link>
                   )}
-                  <Link
-                    href="/profile"
-                    className="truncate max-w-[36vw] hover:text-[var(--accent)] transition"
-                  >
-                    {me.displayName}
-                  </Link>
-                  <LogoutButton />
+                  <div className="min-w-0 text-right">
+                    <Link
+                      href="/profile"
+                      className="block truncate max-w-[36vw] hover:text-[var(--accent)] transition"
+                    >
+                      {me.displayName}
+                    </Link>
+                    <span className="block text-[10px] opacity-70">
+                      公={me.publicMass} 匿={me.anonymousMass}
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
