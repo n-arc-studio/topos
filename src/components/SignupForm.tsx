@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-export function SignupForm() {
+export function SignupForm({ callbackUrl = "/" }: { callbackUrl?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,13 +33,13 @@ export function SignupForm() {
             email,
             password,
             redirect: false,
-            callbackUrl: "/",
+            callbackUrl,
           });
           if (!result || result.error) {
             setError("登録後のログインに失敗しました");
             return;
           }
-          router.push("/");
+          router.push(result.url || callbackUrl);
           router.refresh();
         });
       }}
@@ -73,7 +73,10 @@ export function SignupForm() {
         >
           アカウント作成
         </button>
-        <Link href="/login" className="text-xs text-[var(--muted)] hover:underline">
+        <Link
+          href={`/login?next=${encodeURIComponent(callbackUrl)}`}
+          className="text-xs text-[var(--muted)] hover:underline"
+        >
           既にアカウントがある
         </Link>
         {error && <span className="text-xs text-[var(--warn)]">{error}</span>}

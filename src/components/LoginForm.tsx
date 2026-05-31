@@ -62,7 +62,10 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
         >
           ログイン
         </button>
-        <Link href="/signup" className="text-xs text-[var(--muted)] hover:underline">
+        <Link
+          href={`/signup?next=${encodeURIComponent(callbackUrl)}`}
+          className="text-xs text-[var(--muted)] hover:underline"
+        >
           アカウント作成
         </Link>
         {error && <span className="text-xs text-[var(--warn)]">{error}</span>}

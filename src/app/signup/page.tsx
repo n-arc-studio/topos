@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { SignupForm } from "@/components/SignupForm";
 
-export default function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
   return (
     <div className="space-y-6">
       <section>
@@ -14,7 +19,7 @@ export default function SignupPage() {
         </p>
       </section>
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-        <SignupForm />
+        <SignupForm callbackUrl={next || "/"} />
       </section>
     </div>
   );

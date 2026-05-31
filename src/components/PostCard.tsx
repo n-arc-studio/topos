@@ -339,6 +339,8 @@ export function PostCard({
         <ReplyComposer
           threadId={threadId}
           replyTo={post.id}
+          replyToDisplayName={displayName}
+          replyToPreview={post.body}
           canBeAnonymous={meIsAnonymous}
           onDone={() => setReplyOpen(false)}
         />

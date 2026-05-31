@@ -1,7 +1,37 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+
+const MAX_BODY_LENGTH = 2000;
+
+const POST_TEMPLATES = [
+  "問い: いま詰まっている点はどこですか?",
+  "要約: ここまでの議論を3行でまとめると...",
+  "反証: この前提だと別ケースで破綻しませんか?",
+  "改善提案: 次に試すならこの手順が良さそうです",
+] as const;
+
+function draftKey(threadId: string): string {
+  return `topos:draft:post:${threadId}`;
+}
+
+function mapPostError(code: string | undefined): string {
+  switch (code) {
+    case "empty_body":
+      return "本文を入力してください。";
+    case "too_long":
+      return `本文は${MAX_BODY_LENGTH}文字以内で入力してください。`;
+    case "thread_not_found":
+      return "スレッドが見つかりません。ページを再読み込みしてください。";
+    case "space_archived":
+      return "この場は現在書き込みできません。";
+    case "invalid_input":
+      return "入力内容を確認してください。";
+    default:
+      return "投稿に失敗しました。時間をおいて再試行してください。";
+  }
+}
 
 export function PostComposer({
   threadId,
@@ -18,7 +48,37 @@ export function PostComposer({
   );
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
+  const [restored, setRestored] = useState(false);
   const router = useRouter();
+  const overLimit = body.length > MAX_BODY_LENGTH;
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(draftKey(threadId));
+      if (saved && saved.trim().length > 0) {
+        setBody(saved);
+        setRestored(true);
+      }
+    } catch {
+      // no-op: localStorage が使えない環境では下書き保存を無効化する。
+    }
+  }, [threadId]);
+
+  useEffect(() => {
+    try {
+      if (!body.trim()) {
+        window.localStorage.removeItem(draftKey(threadId));
+        return;
+      }
+      window.localStorage.setItem(draftKey(threadId), body);
+    } catch {
+      // no-op
+    }
+  }, [body, threadId]);
+
+  function applyTemplate(template: string) {
+    setBody((prev) => (prev.trim() ? `${prev}\n\n${template}` : template));
+  }
 
   return (
     <form
@@ -26,23 +86,43 @@ export function PostComposer({
         e.preventDefault();
         setErr(null);
         start(async () => {
+          const trimmed = body.trim();
+          if (!trimmed) {
+            setErr("本文を入力してください。");
+            return;
+          }
+          if (body.length > MAX_BODY_LENGTH) {
+            setErr(`本文は${MAX_BODY_LENGTH}文字以内で入力してください。`);
+            return;
+          }
+
           const res = await fetch("/api/posts", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ threadId, body, identityMode: mode }),
+            body: JSON.stringify({ threadId, body: trimmed, identityMode: mode }),
           });
           const json = await res.json();
           if (!res.ok) {
             if (res.status === 401) {
+              try {
+                window.localStorage.setItem(draftKey(threadId), body);
+              } catch {
+                // no-op
+              }
               router.push(
-                `/login?next=${encodeURIComponent(window.location.pathname)}`
+                `/login?next=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`
               );
               return;
             }
-            setErr(json.error ?? "失敗");
+            setErr(mapPostError(json.error));
             return;
           }
           setBody("");
+          try {
+            window.localStorage.removeItem(draftKey(threadId));
+          } catch {
+            // no-op
+          }
           router.refresh();
         });
       }}
@@ -61,6 +141,29 @@ export function PostComposer({
         rows={3}
         className="w-full bg-[var(--panel-2)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent)] resize-y"
       />
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {POST_TEMPLATES.map((template) => (
+          <button
+            key={template}
+            type="button"
+            onClick={() => applyTemplate(template)}
+            className="px-2 py-1 rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
+          >
+            {template.split(":")[0]}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <p className="text-[var(--muted)]">
+          匿名は役割を軽く、記名は責任を明示して投稿できます。
+        </p>
+        <span className={overLimit ? "text-[var(--warn)]" : "text-[var(--muted)]"}>
+          {body.length}/{MAX_BODY_LENGTH}
+        </span>
+      </div>
+      {restored && (
+        <p className="text-xs text-[var(--muted)]">下書きを復元しました。</p>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {canBeAnonymous && (
@@ -106,7 +209,7 @@ export function PostComposer({
         </div>
         <button
           type="submit"
-          disabled={pending || !body.trim()}
+          disabled={pending || !body.trim() || overLimit}
           className="w-full px-3 py-2 text-sm rounded bg-[var(--accent)] text-black font-medium disabled:opacity-50 sm:w-auto"
         >
           投下する

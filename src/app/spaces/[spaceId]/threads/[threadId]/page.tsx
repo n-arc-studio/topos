@@ -187,6 +187,13 @@ export default async function ThreadPage({
               canBeAnonymous={!meIsAdmin}
               todayCount={myTodayPosts}
             />
+            <div className="mt-3 rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-xs text-[var(--muted)] space-y-1">
+              <p className="font-medium text-[var(--foreground)]">投稿ガイド</p>
+              <p>迷ったら「問い」「要約」「反証」「改善提案」のどれか1つで始めてください。</p>
+              <p>
+                匿名は視点を出しやすく、記名は責任を明示しやすいモードです。
+              </p>
+            </div>
             {meIsAdmin && (
               <p className="text-xs text-[var(--warn)] mt-2">
                 あなたはこの場の管理者です。記名投稿のみ可能です(責任の可視化のため)。
@@ -325,8 +332,24 @@ export default async function ThreadPage({
       </div>
 
       {flat.length === 0 ? (
-        <div className="rounded-md border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
-          まだ投稿はありません。最初のひとことが場をつくります。
+        <div className="rounded-md border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)] space-y-3">
+          <p>まだ投稿はありません。最初のひとことが場をつくります。</p>
+          <div className="text-xs space-y-1">
+            <p>例: 「このスレで先に定義したい言葉は?」</p>
+            <p>例: 「ここまでの議論を3行で要約すると?」</p>
+            <p>例: 「次に試す改善案を1つ挙げると?」</p>
+          </div>
+          {!me && (
+            <p className="text-xs">
+              <Link
+                href={`/login?next=${encodeURIComponent(`/spaces/${currentSpace.id}/threads/${currentThread.id}`)}`}
+                className="text-[var(--accent)] hover:underline"
+              >
+                ログイン
+              </Link>{" "}
+              すると、このスレッドですぐ投稿できます。
+            </p>
+          )}
         </div>
       ) : layered ? (
         <section className="space-y-6">

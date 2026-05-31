@@ -42,7 +42,7 @@ export default async function SpacePage({
         </div>
       </section>
 
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+      <section id="new-thread" className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
         <h2 className="text-sm font-medium mb-2">新しいスレッドを建てる</h2>
         {me ? (
           <NewThreadForm spaceId={space.id} />
@@ -54,10 +54,24 @@ export default async function SpacePage({
       <section>
         <h2 className="text-sm font-medium mb-3">スレッド</h2>
         {threads.length === 0 ? (
-          <div className="rounded-md border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
-            まだスレッドはありません。
-            <br />
-            最初の問いを置いてみませんか?
+          <div className="rounded-md border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)] space-y-3">
+            <p>まだスレッドはありません。最初の問いを置いてみませんか?</p>
+            <div className="text-xs space-y-1">
+              <p>例: 「この場で今いちばん詰まっていることは?」</p>
+              <p>例: 「まず共有すべき前提を1つ挙げるなら?」</p>
+            </div>
+            {me ? (
+              <a href="#new-thread" className="text-[var(--accent)] hover:underline text-xs">
+                上のフォームから最初のスレッドを作成する
+              </a>
+            ) : (
+              <Link
+                href={`/login?next=${encodeURIComponent(`/spaces/${space.id}`)}`}
+                className="text-[var(--accent)] hover:underline text-xs"
+              >
+                ログインしてスレッドを建てる
+              </Link>
+            )}
           </div>
         ) : (
           <ul className="space-y-2">
