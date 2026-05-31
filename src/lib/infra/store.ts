@@ -642,6 +642,93 @@ export function deleteThread(
   };
 }
 
+export function moveThread(
+  threadId: string,
+  destinationSpaceId: string,
+  byUserId: string
+):
+  | {
+      id: string;
+      fromSpaceId: string;
+      toSpaceId: string;
+      movedPostCount: number;
+    }
+  | { error: string } {
+  const db = getDB();
+  const thread = db.threads.get(threadId);
+  if (!thread) return { error: "thread_not_found" };
+
+  const fromSpace = db.spaces.get(thread.spaceId);
+  if (!fromSpace) return { error: "space_not_found" };
+
+  const toSpace = db.spaces.get(destinationSpaceId);
+  if (!toSpace) return { error: "destination_space_not_found" };
+  if (thread.spaceId === destinationSpaceId) {
+    return { error: "same_space" };
+  }
+
+  touchLifecycle(fromSpace);
+  touchLifecycle(toSpace);
+  if (!isWritable(toSpace)) return { error: "destination_space_archived" };
+
+  const actor = db.users.get(byUserId);
+  const canManage =
+    !!actor &&
+    (isPlatformAdmin(byUserId) ||
+      (actor.isAdminOf.includes(thread.spaceId) &&
+        actor.isAdminOf.includes(destinationSpaceId)));
+  if (!canManage) return { error: "forbidden" };
+
+  const now = Date.now();
+  const movedPosts = ensurePostsByThreadIndex(db).get(threadId) ?? EMPTY_POSTS;
+
+  thread.spaceId = destinationSpaceId;
+  for (const post of movedPosts) {
+    post.spaceId = destinationSpaceId;
+  }
+
+  fromSpace.lastAdminActionAt = now;
+  toSpace.lastAdminActionAt = now;
+  touchLifecycle(fromSpace);
+  touchLifecycle(toSpace);
+
+  db.moderation.push({
+    id: `m_${Math.random().toString(36).slice(2, 10)}`,
+    spaceId: fromSpace.id,
+    threadId,
+    byUserId,
+    kind: "define",
+    payload: {
+      operation: "move_thread_out",
+      toSpaceId: destinationSpaceId,
+      movedPostCount: movedPosts.length,
+    },
+    at: now,
+  });
+  db.moderation.push({
+    id: `m_${Math.random().toString(36).slice(2, 10)}`,
+    spaceId: toSpace.id,
+    threadId,
+    byUserId,
+    kind: "define",
+    payload: {
+      operation: "move_thread_in",
+      fromSpaceId: fromSpace.id,
+      movedPostCount: movedPosts.length,
+    },
+    at: now,
+  });
+
+  persist();
+
+  return {
+    id: threadId,
+    fromSpaceId: fromSpace.id,
+    toSpaceId: toSpace.id,
+    movedPostCount: movedPosts.length,
+  };
+}
+
 export function createPost(input: {
   threadId: string;
   authorId: string;

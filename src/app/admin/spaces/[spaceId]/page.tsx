@@ -7,6 +7,7 @@ import {
   getUser,
   isAdmin,
   isPlatformAdmin,
+  listSpaces,
   listThreads,
   listPosts,
   listModerationLog,
@@ -21,6 +22,7 @@ import { SpaceConfigForm } from "@/components/SpaceConfigForm";
 import { AdminRoleForm } from "@/components/AdminRoleForm";
 import { NewThreadForm } from "@/components/NewThreadForm";
 import { AdminDeleteButton } from "@/components/AdminDeleteButton";
+import { ThreadMoveForm } from "@/components/ThreadMoveForm";
 
 function fmt(ts: number) {
   return new Date(ts).toLocaleString("ja-JP");
@@ -47,6 +49,11 @@ export default async function SpaceAdminPage({
   const sunk = listSunkPosts([spaceId]);
   const log = listModerationLog([spaceId], 50);
   const threads = listThreads(spaceId);
+  const destinationSpaces = (isPlatformAdmin(me.id)
+    ? listSpaces()
+    : me.isAdminOf.map((sid) => getSpace(sid)).filter((s) => !!s))
+    .filter((candidate) => candidate.id !== spaceId)
+    .map((candidate) => ({ id: candidate.id, name: candidate.name }));
   const comments = threads
     .flatMap((thread) => listPosts(thread.id))
     .sort((a, b) => b.createdAt - a.createdAt)
@@ -114,7 +121,7 @@ export default async function SpaceAdminPage({
         <h2 className="text-sm font-medium">スレッド管理 ({threads.length})</h2>
         <div className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3">
           <p className="text-xs text-[var(--muted)] mb-2">
-            この場の管理画面から新しいスレッド作成と不要スレッドの削除ができます。
+            この場の管理画面から新しいスレッド作成、別の管理対象の場への移動、不要スレッドの削除ができます。
           </p>
           <NewThreadForm spaceId={spaceId} />
         </div>
@@ -138,6 +145,11 @@ export default async function SpaceAdminPage({
                 </div>
                 <div className="mt-2 text-xs flex flex-wrap items-center gap-3">
                   <span className="text-[var(--muted)]">{thread.id}</span>
+                  <ThreadMoveForm
+                    threadId={thread.id}
+                    threadTitle={thread.title}
+                    destinations={destinationSpaces}
+                  />
                   <AdminDeleteButton
                     endpoint={`/api/threads/${thread.id}`}
                     label="スレッド削除"
