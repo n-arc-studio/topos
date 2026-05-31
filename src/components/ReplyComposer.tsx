@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import {
+  markPendingAuthResume,
+  trackMobileMetric,
+} from "@/lib/ui/mobile-metrics";
 
 const MAX_BODY_LENGTH = 2000;
 
@@ -63,6 +67,7 @@ export function ReplyComposer({
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const hasTrackedComposeStartRef = useRef(false);
   const overLimit = body.length > MAX_BODY_LENGTH;
   const isKeyboardOpen = keyboardInset > 80;
 
@@ -161,19 +166,32 @@ export function ReplyComposer({
           const json = await res.json();
           if (!res.ok) {
             if (res.status === 401) {
+              const callbackUrl = `${window.location.pathname}${window.location.search}`;
               try {
                 window.localStorage.setItem(replyDraftKey(threadId, replyTo), body);
               } catch {
                 // no-op
               }
+              markPendingAuthResume({ callbackUrl, threadId, composeKind: "reply" });
+              await trackMobileMetric({
+                name: "auth_required",
+                threadId,
+                composeKind: "reply",
+                ref: "reply_submit",
+              });
               router.push(
-                `/login?next=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`
+                `/login?next=${encodeURIComponent(callbackUrl)}`
               );
               return;
             }
             setErr(mapReplyError(json.error));
             return;
           }
+          await trackMobileMetric({
+            name: "reply_submitted",
+            threadId,
+            composeKind: "reply",
+          });
           setBody("");
           try {
             window.localStorage.removeItem(replyDraftKey(threadId, replyTo));
@@ -207,6 +225,15 @@ export function ReplyComposer({
             e.preventDefault();
             formRef.current?.requestSubmit();
           }
+        }}
+        onFocus={() => {
+          if (hasTrackedComposeStartRef.current) return;
+          hasTrackedComposeStartRef.current = true;
+          void trackMobileMetric({
+            name: "compose_started",
+            threadId,
+            composeKind: "reply",
+          });
         }}
         placeholder="返信を書く (突っ込み歓迎)"
         rows={3}

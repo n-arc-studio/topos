@@ -9,6 +9,7 @@ import {
 } from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
 import { currentTimeMs } from "@/lib/time";
+import { MobileMetricOnMount } from "@/components/MobileMetricOnMount";
 
 function timeAgoJP(ts: number, now: number): string {
   const diffMs = now - ts;
@@ -45,6 +46,7 @@ export default async function Home() {
 
   return (
     <div className="space-y-8">
+      <MobileMetricOnMount name="home_view" />
       <section className="home-hero rounded-2xl border border-[var(--border)] p-5 md:p-6 overflow-hidden relative">
         <div className="home-hero-glow" aria-hidden="true" />
         <div className="relative z-[1] space-y-5">

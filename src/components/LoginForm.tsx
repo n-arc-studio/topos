@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { trackAuthResumedIfPending } from "@/lib/ui/mobile-metrics";
 
 export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
   const router = useRouter();
@@ -29,6 +30,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
             setError("ログインに失敗しました");
             return;
           }
+          await trackAuthResumedIfPending(callbackUrl);
           router.push(result.url || callbackUrl);
           router.refresh();
         });

@@ -170,3 +170,26 @@ export interface ModerationAction {
   at: number;
   note?: string;
 }
+
+// モバイル施策の評価用イベント。
+// 離脱率/投稿開始率/投稿完了率/返信完了率/認証復帰率を算出するために利用する。
+export type MobileMetricEventName =
+  | "home_view"
+  | "compose_started"
+  | "post_submitted"
+  | "reply_submitted"
+  | "auth_required"
+  | "auth_resumed";
+
+export interface MobileMetricEvent {
+  id: string;
+  name: MobileMetricEventName;
+  at: number;
+  sessionId: string;
+  userId?: UserId;
+  path?: string;
+  threadId?: ThreadId;
+  spaceId?: SpaceId;
+  composeKind?: "post" | "reply";
+  ref?: string;
+}

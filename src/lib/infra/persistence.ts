@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import type {
   GravityEvent,
+  MobileMetricEvent,
   ModerationAction,
   Post,
   Space,
@@ -20,6 +21,7 @@ export type PersistDB = {
   reactionLog: Set<string>;
   reportLog: Set<string>;
   gravityEvents: GravityEvent[];
+  mobileMetricEvents: MobileMetricEvent[];
 };
 
 interface SerializedDB {
@@ -32,6 +34,7 @@ interface SerializedDB {
   reactionLog: string[];
   reportLog: string[];
   gravityEvents?: GravityEvent[];
+  mobileMetricEvents?: MobileMetricEvent[];
 }
 
 const DATABASE_URL = process.env.DATABASE_URL?.trim();
@@ -53,6 +56,7 @@ function toPersistDB(parsed: SerializedDB, expectedVersion: number): PersistDB |
     reactionLog: new Set(parsed.reactionLog),
     reportLog: new Set(parsed.reportLog),
     gravityEvents: parsed.gravityEvents ?? [],
+    mobileMetricEvents: parsed.mobileMetricEvents ?? [],
   };
 }
 
@@ -103,6 +107,7 @@ function serialize(db: PersistDB): SerializedDB {
     reactionLog: [...db.reactionLog],
     reportLog: [...db.reportLog],
     gravityEvents: db.gravityEvents,
+    mobileMetricEvents: db.mobileMetricEvents,
   };
 }
 

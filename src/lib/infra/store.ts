@@ -4,6 +4,8 @@ import {
 import type {
   BadgeKind,
   GravityEvent,
+  MobileMetricEvent,
+  MobileMetricEventName,
   ModerationAction,
   Post,
   ReactionKind,
@@ -36,6 +38,8 @@ type DB = {
   reportLog: Set<string>;
   // 重力スコアに影響したイベントの時系列ログ (GravityChart 用)
   gravityEvents: GravityEvent[];
+  // モバイル施策評価用のイベントログ
+  mobileMetricEvents: MobileMetricEvent[];
   // スレッドごとの投稿インデックス (永続化対象外)
   postsByThreadId?: Map<string, Post[]>;
   postsByThreadDirty?: boolean;
@@ -295,6 +299,7 @@ function seed(): DB {
     reactionLog: new Set(),
     reportLog: new Set(),
     gravityEvents: [],
+    mobileMetricEvents: [],
   };
 }
 
@@ -320,6 +325,8 @@ function getDB(): DB {
   ensureDerivedIndexes(g.__toposDB);
   // 後方互換: 既存 DB に gravityEvents が無い場合 (古いプロセスの globalThis キャッシュ等)
   if (!g.__toposDB.gravityEvents) g.__toposDB.gravityEvents = [];
+  // 後方互換: 既存 DB に mobileMetricEvents が無い場合
+  if (!g.__toposDB.mobileMetricEvents) g.__toposDB.mobileMetricEvents = [];
   // 後方互換: lifecycle フィールド未設定の Space を補完 (プロセス内マイグレ)
   for (const s of g.__toposDB.spaces.values()) {
     if (!s.lifecycle) {
@@ -458,6 +465,58 @@ export function getPost(id: string): Post | undefined {
 export function listPostEvents(postId: string): GravityEvent[] {
   const events = getDB().gravityEvents ?? [];
   return events.filter((e) => e.postId === postId);
+}
+
+export function listMobileMetricEvents(opts?: {
+  since?: number;
+  until?: number;
+  name?: MobileMetricEventName;
+}): MobileMetricEvent[] {
+  const events = getDB().mobileMetricEvents ?? [];
+  const since = opts?.since;
+  const until = opts?.until;
+  const name = opts?.name;
+  return events.filter((e) => {
+    if (typeof since === "number" && e.at < since) return false;
+    if (typeof until === "number" && e.at > until) return false;
+    if (name && e.name !== name) return false;
+    return true;
+  });
+}
+
+export function recordMobileMetricEvent(input: {
+  name: MobileMetricEventName;
+  sessionId: string;
+  at?: number;
+  userId?: string;
+  path?: string;
+  threadId?: string;
+  spaceId?: string;
+  composeKind?: "post" | "reply";
+  ref?: string;
+}): MobileMetricEvent {
+  const db = getDB();
+  const event: MobileMetricEvent = {
+    id: `mm_${Math.random().toString(36).slice(2, 10)}`,
+    name: input.name,
+    at: input.at ?? Date.now(),
+    sessionId: input.sessionId,
+    userId: input.userId,
+    path: input.path,
+    threadId: input.threadId,
+    spaceId: input.spaceId,
+    composeKind: input.composeKind,
+    ref: input.ref,
+  };
+
+  db.mobileMetricEvents.push(event);
+  // 保持期間は直近90日。メモリ/永続化サイズを抑える。
+  const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  if (db.mobileMetricEvents.length > 5000) {
+    db.mobileMetricEvents = db.mobileMetricEvents.filter((e) => e.at >= cutoff);
+  }
+  persist();
+  return event;
 }
 
 export function getUser(id: string): User | undefined {

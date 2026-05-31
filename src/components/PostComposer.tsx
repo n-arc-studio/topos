@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import {
+  markPendingAuthResume,
+  trackMobileMetric,
+} from "@/lib/ui/mobile-metrics";
 
 const MAX_BODY_LENGTH = 2000;
 
@@ -54,6 +58,7 @@ export function PostComposer({
   const overLimit = body.length > MAX_BODY_LENGTH;
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const hasTrackedComposeStartRef = useRef(false);
   const isKeyboardOpen = keyboardInset > 80;
 
   function resizeTextarea() {
@@ -139,19 +144,32 @@ export function PostComposer({
           const json = await res.json();
           if (!res.ok) {
             if (res.status === 401) {
+              const callbackUrl = `${window.location.pathname}${window.location.search}`;
               try {
                 window.localStorage.setItem(draftKey(threadId), body);
               } catch {
                 // no-op
               }
+              markPendingAuthResume({ callbackUrl, threadId, composeKind: "post" });
+              await trackMobileMetric({
+                name: "auth_required",
+                threadId,
+                composeKind: "post",
+                ref: "post_submit",
+              });
               router.push(
-                `/login?next=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`
+                `/login?next=${encodeURIComponent(callbackUrl)}`
               );
               return;
             }
             setErr(mapPostError(json.error));
             return;
           }
+          await trackMobileMetric({
+            name: "post_submitted",
+            threadId,
+            composeKind: "post",
+          });
           setBody("");
           try {
             window.localStorage.removeItem(draftKey(threadId));
@@ -183,6 +201,15 @@ export function PostComposer({
             e.preventDefault();
             formRef.current?.requestSubmit();
           }
+        }}
+        onFocus={() => {
+          if (hasTrackedComposeStartRef.current) return;
+          hasTrackedComposeStartRef.current = true;
+          void trackMobileMetric({
+            name: "compose_started",
+            threadId,
+            composeKind: "post",
+          });
         }}
         placeholder="内容を投稿する。必要なら提案や修正依頼として書く。"
         rows={4}

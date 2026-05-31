@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import {
   getUser,
   isPlatformAdmin,
+  listMobileMetricEvents,
   listPosts,
   listSpaces,
   listThreads,
@@ -31,6 +32,47 @@ export default async function AdminPage() {
   const users = listUsers();
   const now = currentTimeMs();
   const activeWindowMs = 7 * 24 * 60 * 60 * 1000;
+  const metricWindowStart = now - activeWindowMs;
+
+  const mobileEvents7d = listMobileMetricEvents({ since: metricWindowStart });
+  const sessionsByName = {
+    homeView: new Set<string>(),
+    composeStarted: new Set<string>(),
+    composeStartedPost: new Set<string>(),
+    composeStartedReply: new Set<string>(),
+    postSubmitted: new Set<string>(),
+    replySubmitted: new Set<string>(),
+    authRequired: new Set<string>(),
+    authResumed: new Set<string>(),
+  };
+
+  for (const e of mobileEvents7d) {
+    if (e.name === "home_view") sessionsByName.homeView.add(e.sessionId);
+    if (e.name === "compose_started") {
+      sessionsByName.composeStarted.add(e.sessionId);
+      if (e.composeKind === "post") sessionsByName.composeStartedPost.add(e.sessionId);
+      if (e.composeKind === "reply") sessionsByName.composeStartedReply.add(e.sessionId);
+    }
+    if (e.name === "post_submitted") sessionsByName.postSubmitted.add(e.sessionId);
+    if (e.name === "reply_submitted") sessionsByName.replySubmitted.add(e.sessionId);
+    if (e.name === "auth_required") sessionsByName.authRequired.add(e.sessionId);
+    if (e.name === "auth_resumed") sessionsByName.authResumed.add(e.sessionId);
+  }
+
+  const completionSessions = new Set<string>([
+    ...sessionsByName.postSubmitted,
+    ...sessionsByName.replySubmitted,
+  ]);
+  const startedSessions = sessionsByName.composeStarted;
+  let abandonedCount = 0;
+  for (const sid of startedSessions) {
+    if (!completionSessions.has(sid)) abandonedCount += 1;
+  }
+
+  function pct(num: number, den: number): string {
+    if (den <= 0) return "-";
+    return `${((num / den) * 100).toFixed(1)}%`;
+  }
 
   const allPosts = spaces.flatMap((space) =>
     listThreads(space.id).flatMap((thread) => listPosts(thread.id))
@@ -99,6 +141,50 @@ export default async function AdminPage() {
           <StatCard label="直近7日アクティブ" value={`${activeUserCount7d}`} />
           <StatCard label="場管理者" value={`${spaceAdminCount}`} />
           <StatCard label="全体管理者" value={`${platformAdminCount}`} />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-sm font-medium">モバイル施策計測 (直近7日)</h2>
+          <p className="text-xs text-[var(--muted)]">Issue #33 向けの比較指標</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+          <StatCard
+            label="離脱率"
+            value={pct(abandonedCount, startedSessions.size)}
+          />
+          <StatCard
+            label="投稿開始率"
+            value={pct(startedSessions.size, sessionsByName.homeView.size)}
+          />
+          <StatCard
+            label="投稿完了率"
+            value={pct(
+              sessionsByName.postSubmitted.size,
+              sessionsByName.composeStartedPost.size
+            )}
+          />
+          <StatCard
+            label="返信完了率"
+            value={pct(
+              sessionsByName.replySubmitted.size,
+              sessionsByName.composeStartedReply.size
+            )}
+          />
+          <StatCard
+            label="認証復帰率"
+            value={pct(sessionsByName.authResumed.size, sessionsByName.authRequired.size)}
+          />
+        </div>
+        <div className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs text-[var(--muted)] space-y-1">
+          <p>母数: 開始 {startedSessions.size} / ホーム訪問 {sessionsByName.homeView.size}</p>
+          <p>
+            投稿開始 {sessionsByName.composeStartedPost.size} / 投稿完了 {sessionsByName.postSubmitted.size} / 返信開始 {sessionsByName.composeStartedReply.size} / 返信完了 {sessionsByName.replySubmitted.size}
+          </p>
+          <p>
+            認証要求 {sessionsByName.authRequired.size} / 認証復帰 {sessionsByName.authResumed.size} / 収集イベント数 {mobileEvents7d.length}
+          </p>
         </div>
       </section>
 
