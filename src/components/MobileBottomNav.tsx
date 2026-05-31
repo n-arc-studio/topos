@@ -84,8 +84,8 @@ export function MobileBottomNav() {
     },
     {
       key: "activity",
-      href: "/#hot-topics",
-      label: "通知",
+      href: "/#your-threads",
+      label: "参加中",
       icon: "activity" as const,
       active: pathname === "/",
       compose: false,
