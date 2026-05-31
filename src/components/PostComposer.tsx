@@ -126,7 +126,7 @@ export function PostComposer({
           router.refresh();
         });
       }}
-      className="space-y-2"
+      className="space-y-3"
     >
       {typeof todayCount === "number" && (
         <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-xs space-y-1">
@@ -139,8 +139,8 @@ export function PostComposer({
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="内容を投稿する。必要なら提案や修正依頼として書く。"
-        rows={3}
-        className="w-full bg-[var(--panel-2)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent)] resize-y"
+        rows={4}
+        className="w-full bg-[var(--panel-2)] border border-[var(--border)] rounded px-3 py-2.5 text-[15px] leading-[1.8] outline-none focus:border-[var(--accent)] resize-y"
       />
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {POST_TEMPLATES.map((template) => (
