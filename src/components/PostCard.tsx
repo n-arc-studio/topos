@@ -16,6 +16,8 @@ const REACTION_ORDER: ReactionKind[] = [
   "heavy",
 ];
 
+const PRIMARY_REACTION_ORDER: ReactionKind[] = ["like", "useful"];
+
 const REACTION_ICON: Record<ReactionKind, string> = {
   like: "👍",
   agree: "🤝",
@@ -296,6 +298,9 @@ export function PostCard({
   const gravityDurationMs = 520 + distortionNormalized * 260;
   const replyPreview = replyContext?.body.trim().slice(0, 120);
   const overEditLimit = editDraft.length > MAX_BODY_LENGTH;
+  const secondaryReactionOrder = REACTION_ORDER.filter(
+    (k) => !PRIMARY_REACTION_ORDER.includes(k)
+  );
 
   useEffect(() => {
     const hashTarget = `reply-${post.id}`;
@@ -436,88 +441,203 @@ export function PostCard({
           />
         </div>
       )}
-      <footer className="mt-3 flex flex-wrap items-center gap-1.5">
-        {REACTION_ORDER.map((k) => (
+      <footer className="mt-3 space-y-2">
+        <div className="grid grid-cols-3 gap-2 sm:hidden">
+          {PRIMARY_REACTION_ORDER.map((k) => (
+            <button
+              key={k}
+              type="button"
+              disabled={!!pendingReaction}
+              onClick={() => react(k)}
+              className="min-h-10 rounded border border-[var(--border)] px-2 text-xs transition disabled:opacity-50 inline-flex items-center justify-center gap-1.5 hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              title={REACTION_LABEL[k]}
+              aria-label={`${REACTION_LABEL[k]} リアクション`}
+            >
+              <span aria-hidden>{REACTION_ICON[k]}</span>
+              <span>{REACTION_LABEL[k]}</span>
+              <span className="text-[var(--muted)]">{reactions[k] ?? 0}</span>
+            </button>
+          ))}
           <button
-            key={k}
             type="button"
-            disabled={!!pendingReaction}
-            onClick={() => react(k)}
-            className={`text-xs px-2 py-0.5 rounded border transition disabled:opacity-50 inline-flex items-center gap-1 ${
-              k === "heavy"
-                ? "border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)]"
-                : "border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
-            }`}
-            title={REACTION_LABEL[k]}
-            aria-label={`${REACTION_LABEL[k]} リアクション`}
+            onClick={() => setReplyOpen((v) => !v)}
+            className="min-h-10 rounded bg-[var(--accent)] px-2 text-xs font-semibold text-black"
           >
-            <span aria-hidden>{REACTION_ICON[k]}</span>
-            <span>{REACTION_LABEL[k]}</span>
-            <span className="text-[var(--muted)]">{reactions[k] ?? 0}</span>
+            返信
           </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => setReplyOpen((v) => !v)}
-          className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
-        >
-          返信
-        </button>
-        {canEdit && (
+        </div>
+
+        <details className="rounded border border-[var(--border)] bg-[var(--panel-2)] p-2 sm:hidden">
+          <summary className="cursor-pointer text-xs text-[var(--muted)]">その他の操作</summary>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {secondaryReactionOrder.map((k) => (
+              <button
+                key={k}
+                type="button"
+                disabled={!!pendingReaction}
+                onClick={() => react(k)}
+                className={`text-xs px-2 py-1 rounded border transition disabled:opacity-50 inline-flex items-center gap-1 ${
+                  k === "heavy"
+                    ? "border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)]"
+                    : "border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                }`}
+                title={REACTION_LABEL[k]}
+                aria-label={`${REACTION_LABEL[k]} リアクション`}
+              >
+                <span aria-hidden>{REACTION_ICON[k]}</span>
+                <span>{REACTION_LABEL[k]}</span>
+                <span className="text-[var(--muted)]">{reactions[k] ?? 0}</span>
+              </button>
+            ))}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  setErr(null);
+                  setEditDraft(bodyText);
+                  setEditOpen((v) => !v);
+                }}
+                className="text-xs px-2 py-1 rounded border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
+              >
+                {editOpen ? "編集を閉じる" : "編集"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={report}
+              disabled={pendingReport}
+              className="text-xs px-2 py-1 rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition disabled:opacity-50 inline-flex items-center gap-1"
+              title="通報する"
+            >
+              <span aria-hidden>🚩</span>
+              通報 {reportCount > 0 && <span>{reportCount}</span>}
+            </button>
+          </div>
+          {(meIsAdmin || canDelete) && (
+            <div className="mt-2 rounded border border-[var(--warn)]/35 bg-[var(--panel)] px-2 py-2">
+              <p className="mb-1 text-[10px] text-[var(--muted)]">管理操作</p>
+              <div className="flex flex-wrap gap-1.5">
+                {meIsAdmin && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => moderate(isPinned ? "unpin" : "pin")}
+                      disabled={pendingModeration}
+                      className="text-xs px-2 py-1 rounded border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
+                    >
+                      {isPinned ? "ピン解除" : "ピン留め"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moderate(isSunk ? "unsink" : "sink")}
+                      disabled={pendingModeration}
+                      className="text-xs px-2 py-1 rounded border border-[var(--border)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition"
+                    >
+                      {isSunk ? "沈降解除" : "沈降"}
+                    </button>
+                  </>
+                )}
+                {canDelete && (
+                  <AdminDeleteButton
+                    endpoint={`/api/posts/${post.id}`}
+                    label="削除"
+                    confirmMessage={
+                      post.replyTo
+                        ? "このコメントを削除します。返信がある場合は返信ツリーも削除されます。よろしいですか?"
+                        : "この投稿を削除します。返信がある場合は返信ツリーも削除されます。よろしいですか?"
+                    }
+                    variant="default"
+                  />
+                )}
+              </div>
+            </div>
+          )}
+        </details>
+
+        <div className="hidden flex-wrap items-center gap-1.5 sm:flex">
+          {REACTION_ORDER.map((k) => (
+            <button
+              key={k}
+              type="button"
+              disabled={!!pendingReaction}
+              onClick={() => react(k)}
+              className={`text-xs px-2 py-0.5 rounded border transition disabled:opacity-50 inline-flex items-center gap-1 ${
+                k === "heavy"
+                  ? "border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)]"
+                  : "border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              }`}
+              title={REACTION_LABEL[k]}
+              aria-label={`${REACTION_LABEL[k]} リアクション`}
+            >
+              <span aria-hidden>{REACTION_ICON[k]}</span>
+              <span>{REACTION_LABEL[k]}</span>
+              <span className="text-[var(--muted)]">{reactions[k] ?? 0}</span>
+            </button>
+          ))}
           <button
             type="button"
-            onClick={() => {
-              setErr(null);
-              setEditDraft(bodyText);
-              setEditOpen((v) => !v);
-            }}
+            onClick={() => setReplyOpen((v) => !v)}
             className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
           >
-            {editOpen ? "編集を閉じる" : "編集"}
+            返信
           </button>
-        )}
-        <button
-          type="button"
-          onClick={report}
-          disabled={pendingReport}
-          className="text-xs px-2 py-0.5 rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition disabled:opacity-50 inline-flex items-center gap-1"
-          title="通報する"
-        >
-          <span aria-hidden>🚩</span>
-          通報 {reportCount > 0 && <span>{reportCount}</span>}
-        </button>
-        {meIsAdmin && (
-          <>
+          {canEdit && (
             <button
               type="button"
-              onClick={() => moderate(isPinned ? "unpin" : "pin")}
-              disabled={pendingModeration}
+              onClick={() => {
+                setErr(null);
+                setEditDraft(bodyText);
+                setEditOpen((v) => !v);
+              }}
               className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
             >
-              {isPinned ? "ピン解除" : "ピン留め"}
+              {editOpen ? "編集を閉じる" : "編集"}
             </button>
-            <button
-              type="button"
-              onClick={() => moderate(isSunk ? "unsink" : "sink")}
-              disabled={pendingModeration}
-              className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition"
-            >
-              {isSunk ? "沈降解除" : "沈降"}
-            </button>
-          </>
-        )}
-        {canDelete && (
-          <AdminDeleteButton
-            endpoint={`/api/posts/${post.id}`}
-            label="削除"
-            confirmMessage={
-              post.replyTo
-                ? "このコメントを削除します。返信がある場合は返信ツリーも削除されます。よろしいですか?"
-                : "この投稿を削除します。返信がある場合は返信ツリーも削除されます。よろしいですか?"
-            }
-            variant="default"
-          />
-        )}
+          )}
+          <button
+            type="button"
+            onClick={report}
+            disabled={pendingReport}
+            className="text-xs px-2 py-0.5 rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition disabled:opacity-50 inline-flex items-center gap-1"
+            title="通報する"
+          >
+            <span aria-hidden>🚩</span>
+            通報 {reportCount > 0 && <span>{reportCount}</span>}
+          </button>
+          {meIsAdmin && (
+            <>
+              <button
+                type="button"
+                onClick={() => moderate(isPinned ? "unpin" : "pin")}
+                disabled={pendingModeration}
+                className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
+              >
+                {isPinned ? "ピン解除" : "ピン留め"}
+              </button>
+              <button
+                type="button"
+                onClick={() => moderate(isSunk ? "unsink" : "sink")}
+                disabled={pendingModeration}
+                className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition"
+              >
+                {isSunk ? "沈降解除" : "沈降"}
+              </button>
+            </>
+          )}
+          {canDelete && (
+            <AdminDeleteButton
+              endpoint={`/api/posts/${post.id}`}
+              label="削除"
+              confirmMessage={
+                post.replyTo
+                  ? "このコメントを削除します。返信がある場合は返信ツリーも削除されます。よろしいですか?"
+                  : "この投稿を削除します。返信がある場合は返信ツリーも削除されます。よろしいですか?"
+              }
+              variant="default"
+            />
+          )}
+        </div>
+
         {err && (
           <span className="text-xs text-[var(--warn)]">{err}</span>
         )}
