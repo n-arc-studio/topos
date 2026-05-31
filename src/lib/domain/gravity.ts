@@ -19,6 +19,7 @@ export const DEFAULT_REACTION_WEIGHT: Record<ReactionKind, number> = {
   laugh: 2.0,
   tsukkomi: 2.5,
   agree: 2.5,
+  heavy: -0.8,
 };
 
 export const DEFAULT_HALF_LIFE_HOURS = 24;

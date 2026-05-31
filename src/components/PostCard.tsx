@@ -13,7 +13,18 @@ const REACTION_ORDER: ReactionKind[] = [
   "useful",
   "laugh",
   "tsukkomi",
+  "heavy",
 ];
+
+const REACTION_ICON: Record<ReactionKind, string> = {
+  like: "👍",
+  agree: "🤝",
+  useful: "💡",
+  laugh: "😄",
+  tsukkomi: "💬",
+  heavy: "🪨",
+};
+
 const MAX_BODY_LENGTH = 2000;
 
 function formatLagJP(ms: number): string {
@@ -416,11 +427,17 @@ export function PostCard({
             type="button"
             disabled={!!pendingReaction}
             onClick={() => react(k)}
-            className="text-xs px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition disabled:opacity-50"
+            className={`text-xs px-2 py-0.5 rounded border transition disabled:opacity-50 inline-flex items-center gap-1 ${
+              k === "heavy"
+                ? "border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)]"
+                : "border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            }`}
             title={REACTION_LABEL[k]}
+            aria-label={`${REACTION_LABEL[k]} リアクション`}
           >
-            {REACTION_LABEL[k]}{" "}
-            <span className="text-[var(--muted)]">{reactions[k]}</span>
+            <span aria-hidden>{REACTION_ICON[k]}</span>
+            <span>{REACTION_LABEL[k]}</span>
+            <span className="text-[var(--muted)]">{reactions[k] ?? 0}</span>
           </button>
         ))}
         <button
@@ -447,9 +464,10 @@ export function PostCard({
           type="button"
           onClick={report}
           disabled={pendingReport}
-          className="text-xs px-2 py-0.5 rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition disabled:opacity-50"
+          className="text-xs px-2 py-0.5 rounded border border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)] hover:text-[var(--warn)] transition disabled:opacity-50 inline-flex items-center gap-1"
           title="通報する"
         >
+          <span aria-hidden>🚩</span>
           通報 {reportCount > 0 && <span>{reportCount}</span>}
         </button>
         {meIsAdmin && (

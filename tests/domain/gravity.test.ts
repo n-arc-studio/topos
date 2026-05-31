@@ -18,7 +18,7 @@ function makePost(partial: Partial<Post> = {}): Post {
     identityMode: "named",
     body: "body",
     createdAt: 1_000,
-    reactions: { like: 0, useful: 0, laugh: 0, tsukkomi: 0, agree: 0 },
+    reactions: { like: 0, useful: 0, laugh: 0, tsukkomi: 0, agree: 0, heavy: 0 },
     isAdminPost: false,
     reportCount: 0,
     isPinned: false,
@@ -35,6 +35,7 @@ describe("gravity", () => {
       laugh: 1,
       tsukkomi: 0,
       agree: 3,
+      heavy: 0,
     });
     expect(score).toBe(14.5);
   });
@@ -46,7 +47,9 @@ describe("gravity", () => {
   });
 
   test("gravityScore adds pin bonus for pinned post", () => {
-    const base = makePost({ reactions: { like: 3, useful: 1, laugh: 0, tsukkomi: 0, agree: 0 } });
+    const base = makePost({
+      reactions: { like: 3, useful: 1, laugh: 0, tsukkomi: 0, agree: 0, heavy: 0 },
+    });
     const pinned = { ...base, isPinned: true };
     const baseScore = gravityScore(base, { now: base.createdAt });
     const pinnedScore = gravityScore(pinned, { now: pinned.createdAt });

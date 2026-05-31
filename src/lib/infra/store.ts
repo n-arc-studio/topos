@@ -1,3 +1,6 @@
+import {
+  REACTION_KINDS,
+} from "@/lib/domain/types";
 import type {
   BadgeKind,
   GravityEvent,
@@ -53,6 +56,7 @@ const MASS_WEIGHT: Record<ReactionKind, number> = {
   laugh: 2,
   tsukkomi: 2,
   agree: 2,
+  heavy: 0,
 };
 
 // 投稿/返信の基礎加算。
@@ -134,7 +138,14 @@ function applyMass(
 }
 
 function emptyReactions(): Post["reactions"] {
-  return { like: 0, useful: 0, laugh: 0, tsukkomi: 0, agree: 0 };
+  return {
+    like: 0,
+    useful: 0,
+    laugh: 0,
+    tsukkomi: 0,
+    agree: 0,
+    heavy: 0,
+  };
 }
 
 function newPostBase(): Pick<Post, "reactions" | "reportCount" | "isPinned" | "isSunk"> {
@@ -221,7 +232,7 @@ function seed(): DB {
       identityMode: "named",
       body: "場の重力とは、人や熱量が自然と引き寄せられる引力のこと。フォロワー数ではなく、場への寄与で評価される世界をつくる。",
       createdAt: now - 1000 * 60 * 60 * 24 * 3,
-      reactions: { like: 3, useful: 7, laugh: 0, tsukkomi: 0, agree: 4 },
+      reactions: { like: 3, useful: 7, laugh: 0, tsukkomi: 0, agree: 4, heavy: 0 },
       isAdminPost: true,
       reportCount: 0,
       isPinned: true,
@@ -235,7 +246,7 @@ function seed(): DB {
       identityMode: "anonymous",
       body: "結局フォロワー数ゲームじゃないSNSってどう成り立つの",
       createdAt: now - 1000 * 60 * 60 * 24 * 2,
-      reactions: { like: 1, useful: 2, laugh: 0, tsukkomi: 1, agree: 1 },
+      reactions: { like: 1, useful: 2, laugh: 0, tsukkomi: 1, agree: 1, heavy: 0 },
       isAdminPost: false,
       replyTo: "p1",
       reportCount: 0,
@@ -250,7 +261,7 @@ function seed(): DB {
       identityMode: "named",
       body: "「場の維持に貢献したか」をスコア化する。澱む発言は重力で下に沈み、流れを作る発言が上に浮く。",
       createdAt: now - 1000 * 60 * 60 * 12,
-      reactions: { like: 4, useful: 10, laugh: 0, tsukkomi: 0, agree: 6 },
+      reactions: { like: 4, useful: 10, laugh: 0, tsukkomi: 0, agree: 6, heavy: 0 },
       isAdminPost: true,
       replyTo: "p2",
       reportCount: 0,
@@ -265,7 +276,7 @@ function seed(): DB {
       identityMode: "anonymous",
       body: "敬語=マナーって認識自体が日本語OSのバグだと思う",
       createdAt: now - 1000 * 60 * 60 * 6,
-      reactions: { like: 5, useful: 4, laugh: 2, tsukkomi: 1, agree: 3 },
+      reactions: { like: 5, useful: 4, laugh: 2, tsukkomi: 1, agree: 3, heavy: 0 },
       isAdminPost: false,
       reportCount: 0,
       isPinned: false,
@@ -317,6 +328,17 @@ function getDB(): DB {
       s.lastAdminActionAt = Date.now();
     }
   }
+  // 後方互換: 新規リアクション種別が追加された場合、既存投稿の集計キーを補完する。
+  let reactionsPatched = false;
+  for (const p of g.__toposDB.posts.values()) {
+    for (const kind of REACTION_KINDS) {
+      if (typeof p.reactions[kind] !== "number") {
+        p.reactions[kind] = 0;
+        reactionsPatched = true;
+      }
+    }
+  }
+  if (reactionsPatched) persist();
   return g.__toposDB;
 }
 

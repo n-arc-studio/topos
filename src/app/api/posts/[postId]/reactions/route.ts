@@ -5,15 +5,10 @@ import {
   refreshStoreFromPersistence,
 } from "@/lib/infra/store";
 import { currentUser } from "@/lib/session/identity";
+import { REACTION_KINDS } from "@/lib/domain/types";
 import type { ReactionKind } from "@/lib/domain/types";
 
-const ALLOWED: ReactionKind[] = [
-  "like",
-  "useful",
-  "laugh",
-  "tsukkomi",
-  "agree",
-];
+const ALLOWED: ReactionKind[] = REACTION_KINDS;
 
 export async function POST(
   req: Request,

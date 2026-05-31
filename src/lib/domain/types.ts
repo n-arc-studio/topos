@@ -19,7 +19,23 @@ export type IdentityMode = "anonymous" | "named";
 //  - laugh    : 笑った (面白さ・場の温度)
 //  - tsukkomi : ツッコミ (会話を回す軽い返し / 突っ込み)
 //  - agree    : なるほど (理解が進んだ)
-export type ReactionKind = "like" | "useful" | "laugh" | "tsukkomi" | "agree";
+//  - heavy    : 重い (通報より軽い「重力を少し下げたい」シグナル)
+export type ReactionKind =
+  | "like"
+  | "useful"
+  | "laugh"
+  | "tsukkomi"
+  | "agree"
+  | "heavy";
+
+export const REACTION_KINDS: ReactionKind[] = [
+  "like",
+  "useful",
+  "laugh",
+  "tsukkomi",
+  "agree",
+  "heavy",
+];
 
 export const REACTION_LABEL: Record<ReactionKind, string> = {
   like: "いいね",
@@ -27,6 +43,7 @@ export const REACTION_LABEL: Record<ReactionKind, string> = {
   laugh: "笑った",
   tsukkomi: "ツッコミ",
   agree: "なるほど",
+  heavy: "重い",
 };
 
 export interface User {
