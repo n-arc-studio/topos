@@ -21,6 +21,30 @@ export function PwaRegister() {
 
   // Service Worker を登録する。
   useEffect(() => {
+    // 開発環境では SW を無効化する。
+    // Turbopack の開発バンドルは URL が固定的なことがあり、
+    // stale キャッシュされた旧JSが hydration mismatch を誘発しやすい。
+    if (process.env.NODE_ENV !== "production") {
+      if (!("serviceWorker" in navigator)) return;
+      (async () => {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((reg) => reg.unregister()));
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(
+              keys
+                .filter((key) => key.startsWith("topos-pwa-"))
+                .map((key) => caches.delete(key))
+            );
+          }
+        } catch {
+          // SW の解除失敗時も通常の Web として動作するため握りつぶす。
+        }
+      })();
+      return;
+    }
+
     if (!("serviceWorker" in navigator)) return;
     const onLoad = () => {
       navigator.serviceWorker
