@@ -40,6 +40,17 @@ function formatLagJP(ms: number): string {
   return `${Math.floor(ms / day)}日後`;
 }
 
+function formatTsJst(ts: number): string {
+  const jst = new Date(ts + 9 * 60 * 60 * 1000);
+  const y = jst.getUTCFullYear();
+  const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(jst.getUTCDate()).padStart(2, "0");
+  const hh = String(jst.getUTCHours()).padStart(2, "0");
+  const mm = String(jst.getUTCMinutes()).padStart(2, "0");
+  const ss = String(jst.getUTCSeconds()).padStart(2, "0");
+  return `${y}/${m}/${d} ${hh}:${mm}:${ss}`;
+}
+
 export function PostCard({
   post,
   displayName,
@@ -59,6 +70,7 @@ export function PostCard({
   isMyPost = false,
   distortionLevel = 0,
   replyContext,
+  nowMs,
 }: {
   post: Post;
   displayName: string;
@@ -84,6 +96,7 @@ export function PostCard({
     createdAt: number;
     lagMs: number;
   };
+  nowMs: number;
 }) {
   const [, start] = useTransition();
   const [pendingReaction, setPendingReaction] = useState<ReactionKind | null>(null);
@@ -384,7 +397,7 @@ export function PostCard({
               >
                 ↪ {replyContext.displayName} への返信
               </a>
-              <span>({new Date(replyContext.createdAt).toLocaleString("ja-JP")})</span>
+              <span>({formatTsJst(replyContext.createdAt)})</span>
               <span>+{formatLagJP(replyContext.lagMs)}</span>
             </span>
             {replyPreview && (
@@ -436,6 +449,7 @@ export function PostCard({
           <GravityChart
             post={post}
             baseScore={gravity}
+            nowMs={nowMs}
             events={events}
             halfLifeHours={halfLifeHours}
           />
@@ -648,9 +662,9 @@ export function PostCard({
         )}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--muted)] sm:text-xs">
           {typeof editedAt === "number" && editedAt > post.createdAt && (
-            <span>編集: {new Date(editedAt).toLocaleString("ja-JP")}</span>
+            <span>編集: {formatTsJst(editedAt)}</span>
           )}
-          <span className="sm:ml-auto">{new Date(post.createdAt).toLocaleString("ja-JP")}</span>
+          <span className="sm:ml-auto">{formatTsJst(post.createdAt)}</span>
         </div>
       </footer>
       {replyOpen && (

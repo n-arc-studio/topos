@@ -190,6 +190,7 @@ export default async function ThreadPage({
         events={listPostEvents(f.post.id)}
         isMyPost={isMyPost}
         distortionLevel={distortionLevel}
+        nowMs={now}
         replyContext={
           parentPost
             ? {

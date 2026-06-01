@@ -18,6 +18,7 @@ import {
 export function GravityChart({
   post,
   baseScore,
+  nowMs,
   events,
   context,
   halfLifeHours = DEFAULT_HALF_LIFE_HOURS,
@@ -26,6 +27,7 @@ export function GravityChart({
 }: {
   post: Post;
   baseScore: number; // 現時点の重力スコア (decay 後)
+  nowMs: number;
   events?: GravityEvent[];
   context?: Omit<GravityContext, "now">;
   halfLifeHours?: number;
@@ -33,7 +35,7 @@ export function GravityChart({
   samples?: number;
 }) {
   const { points, maxScore, nowOffsetX, eventMarks } = useMemo(() => {
-    const now = Date.now();
+    const now = nowMs;
     const start = post.createdAt;
     const end = now + hoursWindow * 0.1 * 3600_000; // 少し未来まで
     const span = Math.max(1, end - start);
@@ -74,7 +76,7 @@ export function GravityChart({
       .filter((e) => e.at >= start && e.at <= end)
       .map((e) => ({ x: (e.at - start) / span, type: e.type }));
     return { points: xs, maxScore: max, nowOffsetX: nowFrac, eventMarks: marks };
-  }, [post, baseScore, events, context, halfLifeHours, hoursWindow, samples]);
+  }, [post, baseScore, nowMs, events, context, halfLifeHours, hoursWindow, samples]);
 
   const W = 220;
   const H = 70;
