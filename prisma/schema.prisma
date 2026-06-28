@@ -1,0 +1,133 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model AuthUser {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password_hash String
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  profile       UserProfile?
+}
+
+model User {
+  id                String   @id @default(cuid())
+  display_name      String?
+  is_admin_of       Json     @default("[]")          // SpaceId[] stored as JSON array of strings
+  public_mass       Float    @default(1.0)
+  anonymous_mass    Float    @default(0.5)
+  badges            Json     @default("[]")           // UserBadge[] stored as JSON array
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  profile           UserProfile?
+
+  @@map("users")
+}
+
+model UserProfile {
+  id              String     @id @default(cuid())
+  auth_user_id    String     @unique
+  domain_user_id  String     @unique
+  display_name    String?
+  created_at      DateTime   @default(now())
+  updated_at      DateTime   @updatedAt
+  auth_user       AuthUser   @relation(fields: [auth_user_id], references: [id])
+  user            User       @relation(fields: [domain_user_id], references: [id])
+}
+
+model Space {
+  id                  String        @id @default(cuid())
+  name                String
+  description         String?
+  admin_ids           String[]
+  lifecycle           SpaceLifecycle
+  lifecycle_since     DateTime      @default(now())
+  last_admin_action_at DateTime
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @updatedAt
+  threads             Thread[]
+  posts               Post[]
+}
+
+enum SpaceLifecycle {
+  active
+  dormant
+  succession
+  archived
+}
+
+model Thread {
+  id              String       @id @default(cuid())
+  space_id        String
+  title           String
+  created_by      String
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+  posts           Post[]
+  space           Space        @relation(fields: [space_id], references: [id])
+}
+
+model Post {
+  id              String       @id @default(cuid())
+  thread_id       String
+  author_id       String
+  content         String
+  space_id        String
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+  reactions       Reaction[]
+  reports         Report[]
+  parent_post_id  String?
+  replies         Post[]       @relation("PostReplies")
+  parent_post     Post?        @relation("PostReplies", fields: [parent_post_id], references: [id])
+  thread          Thread       @relation(fields: [thread_id], references: [id])
+  space           Space        @relation(fields: [space_id], references: [id])
+}
+
+model Reaction {
+  id         String   @id @default(cuid())
+  post_id    String
+  user_id    String
+  kind       ReactionKind
+  created_at DateTime @default(now())
+  post       Post     @relation(fields: [post_id], references: [id])
+}
+
+enum ReactionKind {
+  like
+  useful
+  laugh
+  tsukkomi
+  agree
+  heavy
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  post_id    String
+  user_id    String
+  reason     String
+  created_at DateTime @default(now())
+  post       Post     @relation(fields: [post_id], references: [id])
+}
+
+model ModerationAction {
+  id              String   @id @default(cuid())
+  action          String
+  target_type     String
+  target_id       String
+  actor_user_id   String
+  created_at      DateTime @default(now())
+}

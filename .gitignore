@@ -42,3 +42,5 @@ next-env.d.ts
 
 # persistence (MVP file store)
 /data
+
+/src/generated/prisma
