@@ -1,21 +1,29 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '@/app/api/threads/route';
 
-// モックの関数を設定
-vi.mock('@/lib/session/identity', () => ({
+// モック関数をvi.hoistedで事前に定義
+const mocked = vi.hoisted(() => ({
   currentUser: vi.fn(),
-}));
-
-vi.mock('@/lib/infra/store', () => ({
   createThread: vi.fn(),
   persistStoreNow: vi.fn(),
   refreshStoreFromPersistence: vi.fn(),
 }));
 
-const mockCurrentUser = vi.mocked(await import('@/lib/session/identity').currentUser);
-const mockCreateThread = vi.mocked(await import('@/lib/infra/store').createThread);
-const mockPersistStoreNow = vi.mocked(await import('@/lib/infra/store').persistStoreNow);
-const mockRefreshStoreFromPersistence = vi.mocked(await import('@/lib/infra/store').refreshStoreFromPersistence);
+// モックの関数を設定
+vi.mock('@/lib/session/identity', () => ({
+  currentUser: mocked.currentUser,
+}));
+
+vi.mock('@/lib/infra/store', () => ({
+  createThread: mocked.createThread,
+  persistStoreNow: mocked.persistStoreNow,
+  refreshStoreFromPersistence: mocked.refreshStoreFromPersistence,
+}));
+
+const mockCurrentUser = mocked.currentUser;
+const mockCreateThread = mocked.createThread;
+const mockPersistStoreNow = mocked.persistStoreNow;
+const mockRefreshStoreFromPersistence = mocked.refreshStoreFromPersistence;
 
 describe('POST /api/threads', () => {
   beforeEach(() => {
@@ -57,10 +65,10 @@ describe('POST /api/threads', () => {
       createdAt: new Date().toISOString(),
     });
     mockPersistStoreNow.mockResolvedValue(undefined);
-    
+
     const request = new Request('http://localhost:3000/api/threads', {
       method: 'POST',
-      body: JSON.stringify({ title: 'test thread' }),
+      body: JSON.stringify({ spaceId: 'space123', title: 'test thread' }),
     });
     
     const response = await POST(request);
@@ -86,12 +94,12 @@ describe('POST /api/threads', () => {
   it('should handle store errors properly', async () => {
     mockCurrentUser.mockResolvedValue({ id: 'user123', name: 'Test User' });
     mockRefreshStoreFromPersistence.mockRejectedValue(new Error('store error'));
-    
+
     const request = new Request('http://localhost:3000/api/threads', {
       method: 'POST',
-      body: JSON.stringify({ title: 'test thread' }),
+      body: JSON.stringify({ spaceId: 'space123', title: 'test thread' }),
     });
-    
+
     const response = await POST(request);
     expect(response.status).toBe(500);
   });

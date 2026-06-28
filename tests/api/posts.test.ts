@@ -1,27 +1,29 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST } from "@/app/api/posts/route";
 
-// モックの関数を設定
-vi.mock("@/lib/session/identity", () => ({
+// モック関数をvi.hoistedで事前に定義
+const mocked = vi.hoisted(() => ({
   currentUser: vi.fn(),
-}));
-
-vi.mock("@/lib/infra/store", () => ({
   createPost: vi.fn(),
   persistStoreNow: vi.fn(),
   refreshStoreFromPersistence: vi.fn(),
 }));
 
-const mockCurrentUser = vi.mocked(
-  await import("@/lib/session/identity").currentUser,
-);
-const mockCreatePost = vi.mocked(await import("@/lib/infra/store").createPost);
-const mockPersistStoreNow = vi.mocked(
-  await import("@/lib/infra/store").persistStoreNow,
-);
-const mockRefreshStoreFromPersistence = vi.mocked(
-  await import("@/lib/infra/store").refreshStoreFromPersistence,
-);
+// モックの関数を設定
+vi.mock("@/lib/session/identity", () => ({
+  currentUser: mocked.currentUser,
+}));
+
+vi.mock("@/lib/infra/store", () => ({
+  createPost: mocked.createPost,
+  persistStoreNow: mocked.persistStoreNow,
+  refreshStoreFromPersistence: mocked.refreshStoreFromPersistence,
+}));
+
+const mockCurrentUser = mocked.currentUser;
+const mockCreatePost = mocked.createPost;
+const mockPersistStoreNow = mocked.persistStoreNow;
+const mockRefreshStoreFromPersistence = mocked.refreshStoreFromPersistence;
 
 describe("POST /api/posts", () => {
   beforeEach(() => {
@@ -36,7 +38,7 @@ describe("POST /api/posts", () => {
       body: JSON.stringify({
         threadId: "thread123",
         body: "test post",
-        identityMode: "public",
+        identityMode: "anonymous",
       }),
     });
 
@@ -50,7 +52,7 @@ describe("POST /api/posts", () => {
     // threadIdが不足
     const request = new Request("http://localhost:3000/api/posts", {
       method: "POST",
-      body: JSON.stringify({ body: "test post", identityMode: "public" }),
+      body: JSON.stringify({ body: "test post", identityMode: "anonymous" }),
     });
 
     const response = await POST(request);
@@ -64,7 +66,7 @@ describe("POST /api/posts", () => {
       id: "post456",
       threadId: "thread123",
       body: "test post",
-      identityMode: "public",
+      identityMode: "anonymous",
       authorId: "user123",
       createdAt: new Date().toISOString(),
     });
@@ -75,7 +77,7 @@ describe("POST /api/posts", () => {
       body: JSON.stringify({
         threadId: "thread123",
         body: "test post",
-        identityMode: "public",
+        identityMode: "anonymous",
       }),
     });
 
@@ -95,7 +97,7 @@ describe("POST /api/posts", () => {
       body: JSON.stringify({
         threadId: "thread123",
         body: "test post",
-        identityMode: "public",
+        identityMode: "anonymous",
       }),
     });
 
@@ -112,7 +114,7 @@ describe("POST /api/posts", () => {
       body: JSON.stringify({
         threadId: "thread123",
         body: "test post",
-        identityMode: "public",
+        identityMode: "anonymous",
       }),
     });
 

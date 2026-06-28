@@ -18,7 +18,11 @@ export async function POST(req: Request) {
   if (!body?.spaceId || !body?.title) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
-  await refreshStoreFromPersistence();
+  try {
+    await refreshStoreFromPersistence();
+  } catch (err) {
+    return NextResponse.json({ error: "store_error" }, { status: 500 });
+  }
   const result = createThread({
     spaceId: body.spaceId,
     title: body.title,

@@ -21,7 +21,18 @@ export async function POST(req: Request) {
   if (!body?.threadId || !body?.body || !body?.identityMode) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
-  await refreshStoreFromPersistence();
+  const validModes = ["anonymous", "named"] as const;
+  if (!(validModes as readonly string[]).includes(body.identityMode)) {
+    return NextResponse.json(
+      { error: "invalid_identity_mode" },
+      { status: 400 },
+    );
+  }
+  try {
+    await refreshStoreFromPersistence();
+  } catch (err) {
+    return NextResponse.json({ error: "store_error" }, { status: 500 });
+  }
   const result = createPost({
     threadId: body.threadId,
     authorId: me.id,
